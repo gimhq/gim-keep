@@ -6,8 +6,8 @@ import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-const APP_NAME = process.env.APP_NAME ?? "app";
-const APP_DISPLAY_NAME = process.env.APP_DISPLAY_NAME ?? "App";
+const APP_NAME = process.env.APP_NAME ?? "gim-app";
+const APP_DISPLAY_NAME = process.env.APP_DISPLAY_NAME ?? "gim app server";
 // Vite reads VITE_-prefixed env at config-load time. Mirror APP_* into them
 // so import.meta.env and index.html %VITE_*% substitution work uniformly.
 process.env.VITE_APP_NAME = APP_NAME;

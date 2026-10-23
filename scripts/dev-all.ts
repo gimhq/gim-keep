@@ -9,7 +9,7 @@ import { resolve } from "node:path";
 import process from "node:process";
 
 const ROOT = resolve(import.meta.dir, "..");
-const APP_NAME = process.env.APP_NAME ?? "app";
+const APP_NAME = process.env.APP_NAME ?? "gim-app";
 
 const issuer = process.env.OAUTH_ISSUER;
 // Match the dex-<app> subdomain convention this template uses; tolerant of

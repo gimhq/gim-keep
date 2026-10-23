@@ -45,7 +45,7 @@ const E2E_DIR = join(ROOT, "tests/e2e");
 const DEX_BIN = join(E2E_DIR, ".cache/dex");
 const DEX_DEV_DIR = join(E2E_DIR, ".cache/dev-dex");
 const DEX_CONFIG = join(DEX_DEV_DIR, "config.yaml");
-const APP_NAME = process.env.APP_NAME ?? "app";
+const APP_NAME = process.env.APP_NAME ?? "gim-app";
 
 // Normalise BASE_PATH like apps/api/src/config.ts: empty means root,
 // otherwise "/<x>" with no trailing slash. Used to build the OAuth callback
