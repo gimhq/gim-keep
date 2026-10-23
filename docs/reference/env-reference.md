@@ -7,8 +7,8 @@
 
 | Variable | Type | Default | Required | Description |
 |---|---|---|---|---|
-| `APP_DISPLAY_NAME` | string | `gim app server` | no | Human-readable display name. Shown in HTML title, TOTP issuer, etc. |
-| `APP_NAME` | string | `gim-app` | no | Application slug — must match /^[a-z][a-z0-9-]*$/. Used as the backup filename prefix, localStorage namespace, and (via VITE_APP_NAME) the frontend build. |
+| `APP_DISPLAY_NAME` | string | `gim meta server` | no | Human-readable display name. Shown in HTML title, TOTP issuer, etc. |
+| `APP_NAME` | string | `gim-meta` | no | Application slug — must match /^[a-z][a-z0-9-]*$/. Used as the backup filename prefix, localStorage namespace, and (via VITE_APP_NAME) the frontend build. |
 | `APP_URL` | url | — | no | Public URL used to build OAuth callback URLs. REQUIRED in production: forwarded request headers are not trusted there. Optional in development: falls back to the inbound request's Host header. |
 | `AUDIT_RETENTION_DAYS` | number | `0` | no | Audit retention in days. 0 = keep forever. The schema default is 0 to preserve "never sweep" semantics for the literal value, but production deployments should set a finite value so `audit_events` does not grow unbounded. 365 (one year) is a reasonable starting point. |
 | `BACKUP_EXPORT_MIN_INTERVAL_SECONDS` | number | `300` | no | Minimum seconds between successful service-token backup exports. Throttles a leaked backup token from being turned into a DOS lever (repeated full-DB reads amplify WAL pressure). 0 disables the gate. |

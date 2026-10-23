@@ -1,7 +1,7 @@
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 // One storage slot of a gim user. `data` is sealed by the client with a key
-// derived from the user's root key (gim-core docs/identity.md "App-server
+// derived from the user's root key (gim-core docs/identity.md "Meta-server
 // storage"), base64; the server only keeps and versions it.
 export const gimSlots = sqliteTable("gim_slots", {
   userId: text("user_id").notNull(),

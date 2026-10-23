@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "private": true,
   "description": "React 19 SPA with TanStack Router, Tailwind v4 and dual EN/ZH i18n.",
-  "homepage": "https://github.com/gimhq/gim-app",
+  "homepage": "https://github.com/gimhq/gim-meta",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gimhq/gim-app.git",
+    "url": "https://github.com/gimhq/gim-meta.git",
     "directory": "apps/web"
   },
   "scripts": {
