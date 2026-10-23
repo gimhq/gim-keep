@@ -7,6 +7,7 @@ import { cronRoutes } from "@/modules/cron";
 import { documentRoutes } from "@/modules/document";
 import { encryptionProtectedRoutes } from "@/modules/encryption";
 import { fileRoutes } from "@/modules/file";
+import { gimRoutes } from "@/modules/gim";
 import { issueRoutes } from "@/modules/issue";
 import { policyRoutes } from "@/modules/policy";
 import { settingsRoutes } from "@/modules/settings";
@@ -35,6 +36,7 @@ export function protectedRoutes() {
   app.route("/", backupRoutes());
   app.route("/", cronRoutes());
   app.route("/", fileRoutes());
+  app.route("/", gimRoutes());
 
   return app;
 }

@@ -242,6 +242,36 @@ const cases: Case[] = [
     },
   },
   {
+    // Ed25519 verification in workerd and the gim tables in the Durable
+    // Object database.
+    name: "a root-signed gim storage slot round-trips",
+    async run() {
+      const keys = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]) as CryptoKeyPair;
+      const publicKey = new Uint8Array(await crypto.subtle.exportKey("raw", keys.publicKey));
+      const b64url = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      const hex = (bytes: ArrayBuffer) => Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, "0")).join("");
+      const signed = async (method: string, path: string, body: string) => {
+        const timestamp = String(Date.now());
+        const digest = hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body)));
+        const input = new TextEncoder().encode(`gim/root-request/v1\0${method}\n${path}\n${timestamp}\n${digest}`);
+        const signature = new Uint8Array(await crypto.subtle.sign({ name: "Ed25519" }, keys.privateKey, input));
+        return fetch(`${baseUrl}${path}`, {
+          method,
+          headers: { "Gim-Key": b64url(publicKey), "Gim-Timestamp": timestamp, "Gim-Signature": b64url(signature) },
+          ...(body ? { body } : {}),
+        });
+      };
+      const path = "/api/raw/gim/v1/storage/smoke";
+      const put = await signed("PUT", path, JSON.stringify({ version: 0, data: "AAEC" }));
+      assert(put.status === 200, `slot write returned ${put.status}: ${await put.text()}`);
+      const get = await signed("GET", path, "");
+      const slot = await json<{ data: { version: number; data: string } }>(get);
+      assert(slot.data.version === 1 && slot.data.data === "AAEC", `slot read back as ${JSON.stringify(slot)}`);
+      const unsigned = await fetch(`${baseUrl}${path}`);
+      assert(unsigned.status === 401, `an unsigned read returned ${unsigned.status}`);
+    },
+  },
+  {
     // Runs last: it spends whatever creation budget the cases above left.
     name: "creation rate limit is enforced from the database",
     async run() {

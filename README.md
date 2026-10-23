@@ -1,6 +1,15 @@
-# App Template
+# gim app server
 
-A Bun monorepo template for OAuth-backed internal workspaces. Ships with:
+The gim app server keeps what gim clients must not lose with their devices
+and gim hubs must not learn: per-user storage slots sealed by the client
+(block list, chat settings, privacy switches), and abuse reports with a
+moderators' inbox. Clients authenticate each request with the user's root
+key; there are no gim accounts here. See [`docs/modules/gim.md`](docs/modules/gim.md).
+It runs on Bun or on Cloudflare Workers (one Durable Object with SQLite, see
+[`docs/develop/runtime.md`](docs/develop/runtime.md)).
+
+It is built on the [bun-tpl](https://github.com/zzci/bun-tpl) template
+(remote `template`), which ships with:
 
 - **API** — Hono on Bun, SQLite via Drizzle, optional ECIES at-rest encryption.
 - **Web** — React 19 + TanStack Router + Tailwind v4, file-based routes, dual EN/ZH i18n.
@@ -15,7 +24,7 @@ cp .env.example .env       # uncomment the "Bundled dex IdP" block
 bun run dev:all            # starts dex + web + api in one process group
 ```
 
-Open the URL printed by `bun run dev:all` (e.g. `http://app.localhost:3355`). Sign in with `admin@example.com` / `admin` — the bundled dex's static user. That login is an admin because it matches `DEFAULT_ADMIN`.
+Open the URL printed by `bun run dev:all` (e.g. `http://gim-app.localhost:3355`). Sign in with `admin@example.com` / `admin` — the bundled dex's static user. That login is an admin because it matches `DEFAULT_ADMIN`.
 
 Already have an OAuth/OIDC provider? Point `OAUTH_ISSUER` at it in `.env` and use `bun run dev` instead — `dev:all` detects an external issuer and bows out so it doesn't fight your IdP.
 

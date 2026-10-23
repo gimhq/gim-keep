@@ -35,3 +35,9 @@ project diverges from the template defaults.
 |---|---|
 | `document` (nested + share-inherited markdown documents) | [document.md](document.md) |
 | `issue` (issue tracker with comments + attachments) | [issue.md](issue.md) |
+
+## Application modules
+
+| Module | Page |
+|---|---|
+| `gim` (encrypted storage slots and abuse reports for gim clients) | [gim.md](gim.md) |

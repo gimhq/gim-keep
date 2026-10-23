@@ -37,6 +37,7 @@ export const TAGS = {
   Backup: "Backup",
   Cron: "Cron",
   File: "File",
+  Gim: "Gim",
   Issue: "Issue",
   Raw: "Raw",
 } as const;

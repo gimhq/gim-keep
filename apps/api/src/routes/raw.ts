@@ -1,6 +1,7 @@
 import type { AppEnv } from "@/shared/lib/types";
 import { Hono } from "hono";
 import { describeRoute } from "hono-openapi";
+import { gimRawRoutes } from "@/modules/gim";
 import { TAGS } from "@/shared/lib/openapi";
 
 /**
@@ -31,6 +32,8 @@ export function rawRoutes() {
     }),
     c => c.json({ status: "ok" }),
   );
+
+  app.route("/", gimRawRoutes() as unknown as Hono<AppEnv>);
 
   return app;
 }

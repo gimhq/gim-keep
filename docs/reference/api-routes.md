@@ -5,7 +5,7 @@
 > [`api.md`](api.md); this file is the flat per-route index that CI
 > verifies is up to date.
 
-> 133 routes total.
+> 139 routes total.
 
 | Method | Path |
 |---|---|
@@ -94,6 +94,8 @@
 | POST | `/api/encryption/unlock-challenge` |
 | GET | `/api/files/:id/content` |
 | GET | `/api/files/:id/metadata` |
+| GET | `/api/gim/reports` |
+| PATCH | `/api/gim/reports/:id` |
 | GET | `/api/health` |
 | GET | `/api/health/ready` |
 | GET | `/api/issues` |
@@ -131,6 +133,10 @@
 | PATCH | `/api/policy/tuples/:id` |
 | POST | `/api/policy/tuples/batch` |
 | GET | `/api/policy/users/:id/access` |
+| DELETE | `/api/raw/gim/v1/me` |
+| POST | `/api/raw/gim/v1/reports` |
+| GET | `/api/raw/gim/v1/storage/:name` |
+| PUT | `/api/raw/gim/v1/storage/:name` |
 | GET | `/api/raw/health` |
 | GET | `/api/settings` |
 | DELETE | `/api/settings/:key` |
