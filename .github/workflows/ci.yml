@@ -16,7 +16,7 @@ permissions:
 env:
   # Pin tool versions explicitly so a bun/node minor upgrade is a deliberate
   # PR, not a silent main-branch breakage. Renovate/dependabot can bump.
-  BUN_VERSION: "1.4.2"
+  BUN_VERSION: "1.4.4"
   NODE_VERSION: "24.22.1"
 
 jobs:
@@ -48,8 +48,9 @@ jobs:
       - name: Check
         run: bun run check
 
-      # Coverage ratchet — enforced here because Bun 1.4.2 does not fail a
-      # run on bunfig `coverageThreshold` (it only prints the table). We parse
+      # Coverage ratchet. Since Bun 1.4.4 `bun test` also fails below
+      # apps/api/bunfig.toml's `coverageThreshold`; this step keeps the
+      # documented floor explicit and logs the measured numbers. We parse
       # the text reporter's "All files" row (which honours
       # `apps/api/bunfig.toml`'s coveragePathIgnorePatterns) and fail below the
       # realistic floor documented in the root bunfig.toml. Linux only — the

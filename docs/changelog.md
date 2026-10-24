@@ -11,6 +11,15 @@ each upstream tag; your fork's `Unreleased` block sits at the top.
 
 ## Unreleased
 
+### Changed
+
+- Bun 1.4.2 → 1.4.4 across every pin: the ci, workers and release workflows,
+  the runtime image base (`oven/bun:1.4.4-debian`), `deploy/lode.toml`'s
+  runtime download and `@types/bun`. Bun 1.4.4 fails `bun test` below
+  bunfig `coverageThreshold` (1.4.2 only printed the table), so
+  `apps/api/bunfig.toml`'s line 85% / function 70% now fails the api suite;
+  it measures lines 88.42% / functions 84.26% today.
+
 ## v0.2.0 — 2026-10-24
 
 ### Added

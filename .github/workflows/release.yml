@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  BUN_VERSION: "1.4.2"
+  BUN_VERSION: "1.4.4"
   NODE_VERSION: "24.22.1"
   APP_NAME: app
   ASSET_SUFFIX: linux-x64
