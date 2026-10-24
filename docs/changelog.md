@@ -11,6 +11,8 @@ each upstream tag; your fork's `Unreleased` block sits at the top.
 
 ## Unreleased
 
+## v0.2.0 — 2026-10-24
+
 ### Added
 
 - Password accounts next to OIDC (`LOCAL_LOGIN=true`). Admins add users in the
@@ -145,6 +147,7 @@ each upstream tag; your fork's `Unreleased` block sits at the top.
   `docker.io/bkhq/lode`. The SDK only adds to the state.json contract, so
   existing readiness, prepare, restart, update, rollback and hold calls are
   unchanged.
+
 - CI: Node 24.21.0 → 24.22.1 in the ci, workers and release workflows;
   `actions/setup-node` v6 → v7, `trufflehog` 3.95.6 → 3.99.7 and
   `osv-scanner-action` 2.3.8 → 2.7.0.
