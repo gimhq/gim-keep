@@ -145,6 +145,9 @@ each upstream tag; your fork's `Unreleased` block sits at the top.
   `docker.io/bkhq/lode`. The SDK only adds to the state.json contract, so
   existing readiness, prepare, restart, update, rollback and hold calls are
   unchanged.
+- CI: Node 24.21.0 → 24.22.1 in the ci, workers and release workflows;
+  `actions/setup-node` v6 → v7, `trufflehog` 3.95.6 → 3.99.7 and
+  `osv-scanner-action` 2.3.8 → 2.7.0.
 
 - `/api/docs` no longer serves an API reference page. It redirects to an
   external viewer (`https://client.scalar.com/?url=`, set in `DOCS_VIEWER`)
