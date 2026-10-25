@@ -3,8 +3,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { listGroups } from "@/modules/account/groups/groups.service";
 import { listUsers } from "@/modules/account/users/users.service";
-import { audit } from "@/modules/audit/audit.service";
-import { getClientIp } from "@/shared/lib/client-ip";
+import { audit, auditMeta } from "@/modules/audit/audit.service";
 import { NotFoundError, ValidationError } from "@/shared/lib/errors";
 import { describeRoute, errors, jsonCreated, jsonOk, jsonPaged, SECURITY, TAGS, validator } from "@/shared/lib/openapi";
 import { adminRequired, authRequired } from "@/shared/middleware/auth";
@@ -159,12 +158,16 @@ export function policyRoutes() {
       // Auto-fill subjectRelation for group subjects
       const tupleInput = {
         ...body,
-        subjectRelation: body.subjectNamespace === "group" && !body.subjectRelation ? "member" : body.subjectRelation,
+        subjectRelation: body.subjectNamespace === "group" && !body.subjectRelation
+          ? "member"
+          : body.subjectRelation,
       };
 
       const tuple = await createTuple(db, tupleInput, user.id);
 
-      const tupleStr = `${tupleInput.namespace}:${tupleInput.objectId}#${tupleInput.relation}@${tupleInput.subjectNamespace}:${tupleInput.subjectId}${tupleInput.subjectRelation ? `#${tupleInput.subjectRelation}` : ""}`;
+      const tupleStr = `${tupleInput.namespace}:${tupleInput.objectId}#${tupleInput.relation}@${tupleInput.subjectNamespace}:${tupleInput.subjectId}${tupleInput.subjectRelation
+        ? `#${tupleInput.subjectRelation}`
+        : ""}`;
       await audit(db, c.get("logger"), {
         actorId: user.id,
         actorName: user.name,
@@ -173,8 +176,7 @@ export function policyRoutes() {
         resourceId: body.objectId,
         resourceName: tupleStr,
         detail: { tuple: tupleStr, ...body },
-        ip: getClientIp(c),
-        userAgent: c.req.header("user-agent") ?? "unknown",
+        ...auditMeta(c),
         result: "success",
       });
       return c.json({ success: true, data: tuple }, 201);
@@ -214,8 +216,7 @@ export function policyRoutes() {
           resourceType: existing.namespace,
           resourceId: existing.objectId,
           resourceName: id,
-          ip: getClientIp(c),
-          userAgent: c.req.header("user-agent") ?? "unknown",
+          ...auditMeta(c),
           result: "success",
         });
       }
@@ -237,7 +238,9 @@ export function policyRoutes() {
     }),
     authRequired,
     adminRequired,
-    validator("json", z.object({ relation: z.string().min(1) })),
+    validator("json", z.object({
+      relation: z.string().min(1),
+    })),
     async (c) => {
       const db = c.get("db");
       const user = c.get("user")!;
@@ -256,7 +259,9 @@ export function policyRoutes() {
         throw new NotFoundError("Tuple", id);
       }
 
-      const tupleStr = `${existing.namespace}:${existing.objectId}#${body.relation}@${existing.subjectNamespace}:${existing.subjectId}${existing.subjectRelation ? `#${existing.subjectRelation}` : ""}`;
+      const tupleStr = `${existing.namespace}:${existing.objectId}#${body.relation}@${existing.subjectNamespace}:${existing.subjectId}${existing.subjectRelation
+        ? `#${existing.subjectRelation}`
+        : ""}`;
       await audit(db, c.get("logger"), {
         actorId: user.id,
         actorName: user.name,
@@ -265,8 +270,7 @@ export function policyRoutes() {
         resourceId: existing.objectId,
         resourceName: tupleStr,
         detail: { previousRelation: existing.relation, newRelation: body.relation },
-        ip: getClientIp(c),
-        userAgent: c.req.header("user-agent") ?? "unknown",
+        ...auditMeta(c),
         result: "success",
       });
 
@@ -282,7 +286,10 @@ export function policyRoutes() {
       summary: "Batch create/delete tuples",
       security: SECURITY.session,
       responses: {
-        ...jsonOk(z.object({ created: z.array(tupleRowSchema), deletedCount: z.number() }), "Batch result"),
+        ...jsonOk(z.object({
+          created: z.array(tupleRowSchema),
+          deletedCount: z.number(),
+        }), "Batch result"),
         ...errors(401, 403, 422),
       },
     }),
@@ -300,11 +307,14 @@ export function policyRoutes() {
         }
       }
 
-      const created = body.create ? await batchCreateTuples(db, body.create, user.id) : [];
-      const deletedCount = body.delete ? await batchDeleteTuples(db, body.delete) : 0;
+      const created = body.create
+        ? await batchCreateTuples(db, body.create, user.id)
+        : [];
+      const deletedCount = body.delete
+        ? await batchDeleteTuples(db, body.delete)
+        : 0;
 
-      const ip = getClientIp(c);
-      const userAgent = c.req.header("user-agent") ?? "unknown";
+      const { ip, userAgent } = auditMeta(c);
       if (created.length > 0) {
         const tuples = created.map(t => `${t.namespace}:${t.objectId}#${t.relation}@${t.subjectNamespace}:${t.subjectId}`);
         await audit(db, c.get("logger"), {
@@ -314,7 +324,11 @@ export function policyRoutes() {
           resourceType: "tuple",
           resourceId: "batch",
           resourceName: "batch",
-          detail: { count: created.length, tuples: tuples.slice(0, 5), truncated: tuples.length > 5 },
+          detail: {
+            count: created.length,
+            tuples: tuples.slice(0, 5),
+            truncated: tuples.length > 5,
+          },
           ip,
           userAgent,
           result: "success",
@@ -328,7 +342,10 @@ export function policyRoutes() {
           resourceType: "tuple",
           resourceId: "batch",
           resourceName: "batch",
-          detail: { count: deletedCount, ids: body.delete?.slice(0, 5) },
+          detail: {
+            count: deletedCount,
+            ids: body.delete?.slice(0, 5),
+          },
           ip,
           userAgent,
           result: "success",
@@ -408,7 +425,9 @@ export function policyRoutes() {
       description: "All relation tuples where the user is the subject. Admin only.",
       security: SECURITY.session,
       responses: {
-        ...jsonOk(z.object({ tuples: z.array(tupleRowSchema) }), "User access"),
+        ...jsonOk(z.object({
+          tuples: z.array(tupleRowSchema),
+        }), "User access"),
         ...errors(401, 403),
       },
     }),
@@ -467,7 +486,10 @@ export function policyRoutes() {
     authRequired,
     adminRequired,
     async (c) => {
-      return c.json({ success: true, data: getPermissionManifest(getRouteBindingsForResource) });
+      return c.json({
+        success: true,
+        data: getPermissionManifest(getRouteBindingsForResource),
+      });
     },
   );
 
@@ -559,8 +581,7 @@ export function policyRoutes() {
         resourceType: "resource_group",
         resourceId: group.id,
         resourceName: group.name,
-        ip: getClientIp(c),
-        userAgent: c.req.header("user-agent") ?? "unknown",
+        ...auditMeta(c),
         result: "success",
       });
 
@@ -600,8 +621,7 @@ export function policyRoutes() {
         resourceType: "resource_group",
         resourceId: group.id,
         resourceName: group.name,
-        ip: getClientIp(c),
-        userAgent: c.req.header("user-agent") ?? "unknown",
+        ...auditMeta(c),
         result: "success",
       });
 
@@ -639,8 +659,7 @@ export function policyRoutes() {
         resourceType: "resource_group",
         resourceId: id,
         resourceName: id,
-        ip: getClientIp(c),
-        userAgent: c.req.header("user-agent") ?? "unknown",
+        ...auditMeta(c),
         result: "success",
       });
 
@@ -700,8 +719,7 @@ export function policyRoutes() {
         resourceType: "resource_group",
         resourceId: groupId,
         resourceName: `${body.namespace}:${body.objectId}`,
-        ip: getClientIp(c),
-        userAgent: c.req.header("user-agent") ?? "unknown",
+        ...auditMeta(c),
         result: "success",
       });
 
@@ -740,8 +758,7 @@ export function policyRoutes() {
         resourceType: "resource_group",
         resourceId: groupId,
         resourceName: tupleId,
-        ip: getClientIp(c),
-        userAgent: c.req.header("user-agent") ?? "unknown",
+        ...auditMeta(c),
         result: "success",
       });
 

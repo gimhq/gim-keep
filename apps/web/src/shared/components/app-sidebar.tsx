@@ -33,6 +33,7 @@ import {
 } from "@/shared/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/components/ui/tooltip";
 import { APP_DISPLAY_NAME } from "@/shared/lib/branding";
+import { getInitials } from "@/shared/lib/format";
 import { useAuthStore } from "@/shared/stores/auth";
 
 const LANGUAGES = [
@@ -56,15 +57,6 @@ function isNavActive(
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map(n => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
-
 // ============================================================
 // Main exported component
 // ============================================================
@@ -76,7 +68,9 @@ function CollapseToggle() {
   if (isMobile)
     return null;
 
-  const label = open ? t("nav.collapseSidebar") : t("nav.expandSidebar");
+  const label = open
+    ? t("nav.collapseSidebar")
+    : t("nav.expandSidebar");
 
   return (
     <Tooltip>
@@ -93,7 +87,9 @@ function CollapseToggle() {
           />
         )}
       >
-        {open ? <PanelLeftClose /> : <PanelLeftOpen />}
+        {open
+          ? <PanelLeftClose />
+          : <PanelLeftOpen />}
       </TooltipTrigger>
       <TooltipContent side={open ? "bottom" : "right"} align="center">
         {label}

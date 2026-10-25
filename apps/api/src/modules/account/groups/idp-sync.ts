@@ -2,10 +2,8 @@ import type { AppDatabase } from "@/db";
 import type { Logger } from "@/shared/lib/logger";
 import { Buffer } from "node:buffer";
 import { and, eq, inArray, notInArray } from "drizzle-orm";
-import { customAlphabet } from "nanoid";
+import { nanoid } from "@/shared/lib/id";
 import { DIRECT_MEMBER, groupMembers, groups } from "./schema";
-
-const nanoid = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);
 
 // Mirrors the limit on a group name created through the API.
 const MAX_GROUP_NAME = 100;
@@ -40,7 +38,9 @@ export function readGroupsClaim(
   const raw = userInfo[claim] ?? payloadOf(idToken)[claim];
   if (raw === undefined || raw === null)
     return undefined;
-  const values = Array.isArray(raw) ? raw : [raw];
+  const values = Array.isArray(raw)
+    ? raw
+    : [raw];
   const names = new Set<string>();
   for (const value of values) {
     if (typeof value !== "string")
@@ -77,7 +77,13 @@ export async function syncIdpGroups(
       const group = byName.get(name);
       if (group === undefined) {
         const id = nanoid();
-        await tx.insert(groups).values({ id, name, source: "idp", createdAt: now, updatedAt: now }).run();
+        await tx.insert(groups).values({
+          id,
+          name,
+          source: "idp",
+          createdAt: now,
+          updatedAt: now,
+        }).run();
         wanted.push(id);
       }
       else if (group.source === "idp") {
@@ -98,13 +104,23 @@ export async function syncIdpGroups(
       .where(and(
         userRows,
         inArray(groupMembers.groupId, idpGroupIds),
-        wanted.length === 0 ? undefined : notInArray(groupMembers.groupId, wanted),
+        wanted.length === 0
+          ? undefined
+          : notInArray(groupMembers.groupId, wanted),
       ))
       .run();
 
     for (const groupId of wanted) {
       await tx.insert(groupMembers)
-        .values({ id: nanoid(), groupId, subjectNamespace: "user", subjectId: userId, subjectRelation: DIRECT_MEMBER, createdBy: userId, createdAt: now })
+        .values({
+          id: nanoid(),
+          groupId,
+          subjectNamespace: "user",
+          subjectId: userId,
+          subjectRelation: DIRECT_MEMBER,
+          createdBy: userId,
+          createdAt: now,
+        })
         .onConflictDoNothing()
         .run();
     }

@@ -11,7 +11,13 @@ export const MAX_SLOTS_PER_USER = 16;
 /** Reports one user may file per day. */
 export const MAX_REPORTS_PER_DAY = 50;
 
-export const REPORT_REASONS = ["spam", "harassment", "inappropriate", "scam", "other"] as const;
+export const REPORT_REASONS = [
+  "spam",
+  "harassment",
+  "inappropriate",
+  "scam",
+  "other",
+] as const;
 export type ReportReason = typeof REPORT_REASONS[number];
 export const REPORT_STATUSES = ["open", "resolved", "dismissed"] as const;
 export type ReportStatus = typeof REPORT_STATUSES[number];
@@ -24,7 +30,11 @@ export class VersionConflictError extends AppError {
   toJSON() {
     return {
       success: false as const,
-      error: { code: this.code, message: this.message, details: { version: this.version } },
+      error: {
+        code: this.code,
+        message: this.message,
+        details: { version: this.version },
+      },
     };
   }
 }
@@ -57,12 +67,20 @@ export async function putSlot(
 ): Promise<number> {
   const updatedAt = new Date().toISOString();
   if (expectedVersion === 0) {
-    const used = await db.select({ n: count() }).from(gimSlots).where(eq(gimSlots.userId, userId)).get();
+    const used = await db.select({
+      n: count(),
+    }).from(gimSlots).where(eq(gimSlots.userId, userId)).get();
     if ((used?.n ?? 0) >= MAX_SLOTS_PER_USER && !(await getSlot(db, userId, name)))
       throw new AppError(`At most ${MAX_SLOTS_PER_USER} slots per user`, 409, "TOO_MANY_SLOTS");
     const inserted = await db
       .insert(gimSlots)
-      .values({ userId, name, version: 1, data, updatedAt })
+      .values({
+        userId,
+        name,
+        version: 1,
+        data,
+        updatedAt,
+      })
       .onConflictDoNothing()
       .returning({ version: gimSlots.version });
     if (inserted.length === 1)
@@ -107,7 +125,9 @@ export async function createReport(db: AppDatabase, input: ReportInput): Promise
     return replay.id;
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const recent = await db
-    .select({ n: count() })
+    .select({
+      n: count(),
+    })
     .from(gimReports)
     .where(and(eq(gimReports.reporterId, input.reporterId), gte(gimReports.createdAt, since)))
     .get();
@@ -152,7 +172,13 @@ export async function setReportStatus(db: AppDatabase, id: string, status: Repor
   const open = status === "open";
   const updated = await db
     .update(gimReports)
-    .set({ status, resolvedAt: open ? null : new Date().toISOString(), resolvedBy: open ? null : by })
+    .set({
+      status,
+      resolvedAt: open
+        ? null
+        : new Date().toISOString(),
+      resolvedBy: open ? null : by,
+    })
     .where(eq(gimReports.id, id))
     .returning({ id: gimReports.id });
   return updated.length === 1;

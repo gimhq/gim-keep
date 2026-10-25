@@ -4,7 +4,7 @@ import process from "node:process";
 import cac from "cac";
 import { consola } from "consola";
 import { BUILD_INFO } from "./build-info";
-import { ROOT_DIR } from "./root";
+import { resolveMigrationsFolder } from "./db/migrations-folder";
 
 const migrateLog = consola.withTag("migrate");
 
@@ -45,7 +45,9 @@ export async function dispatchCliSubcommand(argv: readonly string[]): Promise<nu
     parsed = cli.parse([...argv], { run: false });
   }
   catch (err) {
-    consola.error(err instanceof Error ? err.message : String(err));
+    consola.error(err instanceof Error
+      ? err.message
+      : String(err));
     return 2;
   }
 
@@ -62,7 +64,9 @@ export async function dispatchCliSubcommand(argv: readonly string[]): Promise<nu
     await cli.runMatchedCommand();
   }
   catch (err) {
-    consola.error(err instanceof Error ? err.message : String(err));
+    consola.error(err instanceof Error
+      ? err.message
+      : String(err));
     return 2;
   }
   return exitCode;
@@ -74,10 +78,14 @@ async function runHealthcheck(): Promise<number> {
   // exercises the secureHeaders + CORS + request-id stack.
   const port = Number(process.env.PORT ?? "3000");
   const basePath = (process.env.BASE_PATH ?? "").replace(/^\/+|\/+$/g, "");
-  const path = basePath ? `/${basePath}/api/health` : "/api/health";
+  const path = basePath
+    ? `/${basePath}/api/health`
+    : "/api/health";
   const url = `http://127.0.0.1:${port}${path}`;
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(5_000) });
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(5_000),
+    });
     return res.ok ? 0 : 1;
   }
   catch {
@@ -136,16 +144,4 @@ function listFsPendingMigrations(): string[] | null {
   catch {
     return null;
   }
-}
-
-/**
- * Locate the Drizzle migrations folder for both layouts: a packaged lode
- * artifact ships `drizzle/` at ROOT_DIR (next to index.js); the dev/source
- * tree keeps it under `apps/api/drizzle`.
- */
-function resolveMigrationsFolder(): string {
-  const packaged = resolve(ROOT_DIR, "drizzle");
-  if (existsSync(resolve(packaged, "meta/_journal.json")))
-    return packaged;
-  return resolve(ROOT_DIR, "apps/api/drizzle");
 }

@@ -16,7 +16,14 @@ import vectors from "./fixtures/request.json";
 import { signingInput, userIdOf, verifyRequest } from "./gim.auth";
 import { listReports, MAX_SLOTS_PER_USER, putSlot, setReportStatus } from "./gim.service";
 
-const noop = { debug() {}, info() {}, warn() {}, error() {}, fatal() {}, flush() {} } as unknown as Logger;
+const noop = {
+  debug() {},
+  info() {},
+  warn() {},
+  error() {},
+  fatal() {},
+  flush() {},
+} as unknown as Logger;
 const encoder = new TextEncoder();
 
 function fromHex(hex: string): Bytes {
@@ -33,7 +40,10 @@ function base64Url(bytes: Uint8Array): string {
 
 /** A user holding the Ed25519 root key of `seed`. */
 async function rootUser(seed: Bytes) {
-  const pkcs8 = new Uint8Array([...fromHex("302e020100300506032b657004220420"), ...seed]);
+  const pkcs8 = new Uint8Array([
+    ...fromHex("302e020100300506032b657004220420"),
+    ...seed,
+  ]);
   const privateKey = await crypto.subtle.importKey("pkcs8", pkcs8, { name: "Ed25519" }, true, ["sign"]);
   const jwk = await crypto.subtle.exportKey("jwk", privateKey);
   const publicKey = Uint8Array.from(atob(jwk.x!.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
@@ -68,7 +78,10 @@ describe("root-signed request vectors (gim-core tests/vectors/request.json)", ()
       expect(await verifyRequest(request, vector.timestamp_ms)).toBe(vector.user_id);
       // Any changed part, or a stale clock, fails.
       expect(await verifyRequest({ ...request, path: `${vector.path}x` }, vector.timestamp_ms)).toBeNull();
-      expect(await verifyRequest({ ...request, body: encoder.encode("x") }, vector.timestamp_ms)).toBeNull();
+      expect(await verifyRequest({
+        ...request,
+        body: encoder.encode("x"),
+      }, vector.timestamp_ms)).toBeNull();
       expect(await verifyRequest({ ...request, method: "POST" }, vector.timestamp_ms)).toBeNull();
       expect(await verifyRequest(request, vector.timestamp_ms + 5 * 60 * 1000 + 1)).toBeNull();
       expect(await verifyRequest({ ...request, timestamp: `0${vector.timestamp_ms}` }, vector.timestamp_ms)).toBeNull();
@@ -102,7 +115,9 @@ describe("gim raw routes", () => {
       config,
       db,
       logger: noop,
-      encryption: { isSystemLocked: () => false } as unknown as AppDeps["encryption"],
+      encryption: {
+        isSystemLocked: () => false,
+      } as unknown as AppDeps["encryption"],
     };
     app = buildOuterApp(new Hono<AppEnv>(), config, buildRawApp(deps));
   });
@@ -114,7 +129,9 @@ describe("gim raw routes", () => {
 
   async function call(user: Awaited<ReturnType<typeof rootUser>>, method: string, path: string, body = "") {
     const headers = await user.headers(method, path, body);
-    return app.request(path, body ? { method, headers, body } : { method, headers });
+    return app.request(path, body
+      ? { method, headers, body }
+      : { method, headers });
   }
 
   test("a slot is created, read and replaced version by version", async () => {
@@ -130,7 +147,10 @@ describe("gim raw routes", () => {
     // A writer that did not see version 1 is refused with the current one.
     const stale = await call(alice, "PUT", path, JSON.stringify({ version: 0, data: "AwQF" }));
     expect(stale.status).toBe(409);
-    expect((await stale.json()).error).toMatchObject({ code: "VERSION_CONFLICT", details: { version: 1 } });
+    expect((await stale.json()).error).toMatchObject({
+      code: "VERSION_CONFLICT",
+      details: { version: 1 },
+    });
     const next = await call(alice, "PUT", path, JSON.stringify({ version: 1, data: "AwQF" }));
     expect((await next.json()).data).toEqual({ version: 2 });
 
@@ -162,7 +182,14 @@ describe("gim raw routes", () => {
       reportedUserId: mallory.userId,
       reason: "harassment",
       note: "keeps writing",
-      messages: [{ messageId: "m1", senderUserId: mallory.userId, sentAtMs: 1, text: "go away" }],
+      messages: [
+        {
+          messageId: "m1",
+          senderUserId: mallory.userId,
+          sentAtMs: 1,
+          text: "go away",
+        },
+      ],
     });
     const headers = await alice.headers("POST", path, body);
     const first = await app.request(path, { method: "POST", headers, body });
@@ -174,7 +201,12 @@ describe("gim raw routes", () => {
 
     const open = await listReports(db, "open", 10);
     expect(open).toHaveLength(1);
-    expect(open[0]).toMatchObject({ id, reporterId: alice.userId, reportedUserId: mallory.userId, reason: "harassment" });
+    expect(open[0]).toMatchObject({
+      id,
+      reporterId: alice.userId,
+      reportedUserId: mallory.userId,
+      reason: "harassment",
+    });
     expect(open[0]!.messages[0]!.text).toBe("go away");
     expect(await setReportStatus(db, id, "resolved", "moderator")).toBe(true);
     expect(await listReports(db, "open", 10)).toHaveLength(0);

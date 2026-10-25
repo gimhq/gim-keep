@@ -4,14 +4,12 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { eq } from "drizzle-orm";
-import { customAlphabet } from "nanoid";
 import { createDb } from "@/db";
 import { cronJobLogs, cronJobs } from "@/db/schema";
+import { nanoid } from "@/shared/lib/id";
 import { __resetAndReinitActionsForTests } from "./actions";
 import { __resetCronForTests, startCron } from "./cron.service";
 import { executeTask } from "./executor";
-
-const nanoid = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);
 
 let db: AppDatabase;
 let dbPath: string;
@@ -77,7 +75,9 @@ async function insertLog(
     startedAt,
     status,
     finishedAt: opts.finishedAt === undefined
-      ? (status === "running" ? null : startedAt)
+      ? (status === "running"
+          ? null
+          : startedAt)
       : opts.finishedAt,
   }).run();
   return id;
@@ -133,7 +133,12 @@ describe("auto-pause streak ordering", () => {
     let executed = false;
     const { defineAction, registerAction } = await import("./actions");
     registerAction(defineAction({
-      spec: { name: "always-fail", displayName: "f", description: "f", category: "custom" },
+      spec: {
+        name: "always-fail",
+        displayName: "f",
+        description: "f",
+        category: "custom",
+      },
       execute: async () => {
         executed = true;
         throw new Error("boom");
@@ -164,7 +169,12 @@ describe("auto-pause streak ordering", () => {
 
     const { defineAction, registerAction } = await import("./actions");
     registerAction(defineAction({
-      spec: { name: "fail-again", displayName: "f", description: "f", category: "custom" },
+      spec: {
+        name: "fail-again",
+        displayName: "f",
+        description: "f",
+        category: "custom",
+      },
       execute: async () => {
         throw new Error("boom");
       },
@@ -195,7 +205,12 @@ describe("auto-pause streak ordering", () => {
 
     const { defineAction, registerAction } = await import("./actions");
     registerAction(defineAction({
-      spec: { name: "fail-once", displayName: "f", description: "f", category: "custom" },
+      spec: {
+        name: "fail-once",
+        displayName: "f",
+        description: "f",
+        category: "custom",
+      },
       execute: async () => {
         throw new Error("boom");
       },

@@ -112,7 +112,11 @@ const cases: Case[] = [
       const res = await call("/api/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: "smoke document", content: "written on workers", tags: ["smoke"] }),
+        body: JSON.stringify({
+          title: "smoke document",
+          content: "written on workers",
+          tags: ["smoke"],
+        }),
       });
       if (res.status !== 201)
         throw new SmokeError(`create returned ${res.status}: ${await res.text()}`);
@@ -257,8 +261,14 @@ const cases: Case[] = [
         const signature = new Uint8Array(await crypto.subtle.sign({ name: "Ed25519" }, keys.privateKey, input));
         return fetch(`${baseUrl}${path}`, {
           method,
-          headers: { "Gim-Key": b64url(publicKey), "Gim-Timestamp": timestamp, "Gim-Signature": b64url(signature) },
-          ...(body ? { body } : {}),
+          headers: {
+            "Gim-Key": b64url(publicKey),
+            "Gim-Timestamp": timestamp,
+            "Gim-Signature": b64url(signature),
+          },
+          ...(body
+            ? { body }
+            : {}),
         });
       };
       const path = "/api/raw/gim/v1/storage/smoke";
@@ -365,7 +375,9 @@ const oidcCases: Case[] = [
 
 function argValue(name: string): string | undefined {
   const i = process.argv.indexOf(name);
-  return i === -1 ? undefined : process.argv[i + 1];
+  return i === -1
+    ? undefined
+    : process.argv[i + 1];
 }
 
 // Cases for a deployment mounted under a base path. `baseUrl` already ends
@@ -410,7 +422,9 @@ const baseCases: Case[] = [
     },
   },
   {
-    name: homePage === "root" ? "the origin root is the SPA's home page" : "the origin root sends the visitor to the app",
+    name: homePage === "root"
+      ? "the origin root is the SPA's home page"
+      : "the origin root sends the visitor to the app",
     async run() {
       const origin = new URL(baseUrl).origin;
       const prefix = new URL(baseUrl).pathname;
@@ -462,7 +476,13 @@ async function main(): Promise<void> {
       recursive: true,
       force: true,
     });
-    const args = ["dev", "--port", String(PORT), "--ip", "127.0.0.1"];
+    const args = [
+      "dev",
+      "--port",
+      String(PORT),
+      "--ip",
+      "127.0.0.1",
+    ];
     if (basePath) {
       // The deploy workflow rewrites these two lines the same way: assets
       // from the prefix-aware build, and the Worker first for "/" and the
@@ -489,7 +509,9 @@ async function main(): Promise<void> {
     );
   }
 
-  const suite = process.argv.includes("--oidc") ? oidcCases : basePath ? baseCases : cases;
+  const suite = process.argv.includes("--oidc")
+    ? oidcCases
+    : basePath ? baseCases : cases;
 
   let failures = 0;
   try {
@@ -502,7 +524,9 @@ async function main(): Promise<void> {
       catch (err) {
         failures++;
         console.error(`  FAIL  ${c.name}`);
-        console.error(`        ${err instanceof Error ? err.message : String(err)}`);
+        console.error(`        ${err instanceof Error
+          ? err.message
+          : String(err)}`);
       }
     }
   }
@@ -512,7 +536,9 @@ async function main(): Promise<void> {
   }
 
   console.log(`\n${suite.length - failures}/${suite.length} passed`);
-  process.exit(failures === 0 ? 0 : 1);
+  process.exit(failures === 0
+    ? 0
+    : 1);
 }
 
 await main();

@@ -11,6 +11,17 @@ each upstream tag; your fork's `Unreleased` block sits at the top.
 
 ## Unreleased
 
+### Changed
+
+- Bun 1.4.2 → 1.4.4 across every pin: the ci, workers and release workflows,
+  the runtime image base (`oven/bun:1.4.4-debian`), `deploy/lode.toml`'s
+  runtime download and `@types/bun`. Bun 1.4.4 fails `bun test` below
+  bunfig `coverageThreshold` (1.4.2 only printed the table), so
+  `apps/api/bunfig.toml`'s line 85% / function 70% now fails the api suite;
+  it measures lines 88.42% / functions 84.26% today.
+
+## v0.2.0 — 2026-10-24
+
 ### Added
 
 - Password accounts next to OIDC (`LOCAL_LOGIN=true`). Admins add users in the
@@ -129,8 +140,32 @@ each upstream tag; your fork's `Unreleased` block sits at the top.
   cron gate exists because the scheduler holds its own per-job timers and a
   host that evicts the app when idle would drop jobs silently; such
   deployments drive jobs through `POST /api/cron/jobs/:id/trigger` instead.
+- The About tab's lode card names the supervising lode (version, commit and
+  the app-contract features it supports) and gains **Check for updates**,
+  backed by `POST /api/system/lode/check`: lode checks the update source now,
+  whatever `[update].policy` says, and the card polls until it answers, then
+  says whether a newer version is available. lode's check error is not passed
+  on. `/api/system/version` reports `lode.supervisor`, `canCheck` and
+  `checkPending`. A lode older than 0.3 does not report itself; the button is
+  hidden and the route answers 409 `LODE_CHECK_UNSUPPORTED`.
 
 ### Changed
+
+- The vendored lode SDK (`apps/api/src/lode/sdk.ts`) is v0.3.0 from
+  `bkhq/lode`, where lode now lives, and the image and CI signing step pull
+  `docker.io/bkhq/lode`. The SDK only adds to the state.json contract, so
+  existing readiness, prepare, restart, update, rollback and hold calls are
+  unchanged.
+
+- CI: Node 24.21.0 → 24.22.1 in the ci, workers and release workflows;
+  `actions/setup-node` v6 → v7, `trufflehog` 3.95.6 → 3.99.7 and
+  `osv-scanner-action` 2.3.8 → 2.7.0.
+
+- `/api/docs` no longer serves an API reference page. It redirects to an
+  external viewer (`https://client.scalar.com/?url=`, set in `DOCS_VIEWER`)
+  handed the absolute URL of `/api/openapi.json`, which now allows any origin
+  to read it. `@scalar/hono-api-reference` and the docs page's CSP exception
+  are gone. The spec URL is built from `APP_URL` when set.
 
 - On Cloudflare Workers, a configuration change now resets the Durable
   Object. It keeps the `env` it was constructed with while resident, and the
@@ -237,6 +272,16 @@ each upstream tag; your fork's `Unreleased` block sits at the top.
   recreate, and import — the importer migrates the dump).
 
 ### Fixed
+
+- With `TRUST_PROXY=true`, audit events recorded the proxy's address instead
+  of the client's: every audit write read the IP without the proxy config.
+  They now share `auditMeta(c)`, and `getClientIp` requires the config so a
+  call site cannot leave it out again.
+- Searching documents, issues, items or users for text containing `%` or `_`
+  found nothing (documents, issues, items) or matched too much (users): the
+  services escaped the wildcards but SQLite only honours an escape character
+  the query names. Searches now go through `likeEscaped` in
+  `shared/lib/like.ts`, which adds `ESCAPE '\'`.
 
 - Signed-in users were logged out about an hour after an OIDC login, even
   mid-use: the session expired with the IdP's access token, and without a
@@ -452,6 +497,17 @@ each upstream tag; your fork's `Unreleased` block sits at the top.
 
 ### Removed
 
+- Dependencies trimmed, 1123 -> 837 packages in the lockfile. The `shadcn`
+  CLI is gone: its `tailwind.css` is vendored as `apps/web/src/shadcn.css`;
+  add components with `bunx shadcn@latest add`. `qrcode` is replaced by the
+  dependency-free `uqr`, so the TOTP QR code is now an SVG data URL
+  (`data:image/svg+xml;base64,...`). `i18next-browser-languagedetector` is
+  replaced by `shared/lib/language-detector.ts` (stored choice, then the
+  browser's languages). The unused `@fontsource-variable/geist` and the
+  undeclared-in-code `@hono/standard-validator` are dropped. Modules and tests
+  now share `nanoid` and `ulidTimestamp` from `shared/lib/id.ts` instead of
+  their own copies.
+
 - Orphaned code with no importers: `shared/lib/api-response.ts` and
   `shared/lib/pagination.ts` (a response-envelope layer superseded by the
   `openapi.ts` helpers), `shared/middleware/totp.ts` (a `requireTotp`
@@ -476,6 +532,16 @@ each upstream tag; your fork's `Unreleased` block sits at the top.
   `fast-uri`, `js-yaml`, `nanoid` (transitive 3.x/5.x), `postcss`, `qs`,
   `dompurify`, `ip-address`, `body-parser`. Lockfile only; no direct
   dependency ranges changed.
+
+- Dependency overrides trimmed from ten to two. `qs`, `ip-address`,
+  `body-parser`, `fast-uri` and `@modelcontextprotocol/sdk` are no longer in
+  the tree, and `dompurify`, `source-map-js` and `hono` resolve to fixed
+  releases on their own. `esbuild` moved from ^0.25 to ^0.28, the line
+  `wrangler`, `tsx` and `vite` ask for (the old override held them back);
+  it still lifts `@esbuild-kit/core-utils`' 0.18 and `drizzle-kit`'s 0.25.
+  `undici` moved from ^7.30.1 to ^8, overriding `miniflare`'s pinned 7.29.1.
+  Verified with `drizzle-kit generate`, `workers:build` and the Workers smoke
+  test.
 
 ## v0.1.0 — 2026-05-14
 

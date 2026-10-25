@@ -28,7 +28,9 @@ export function rawRoutes() {
     describeRoute({
       tags: [TAGS.Raw],
       summary: "Raw API reachability probe",
-      responses: { 200: { description: "The raw API is reachable" } },
+      responses: {
+        200: { description: "The raw API is reachable" },
+      },
     }),
     c => c.json({ status: "ok" }),
   );

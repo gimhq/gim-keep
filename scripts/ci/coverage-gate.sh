@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Coverage ratchet for apps/api. Bun 1.4.2 does not fail a run on bunfig
-# `coverageThreshold` (it only prints the table), so parse the text reporter's
-# "All files" row (which honours apps/api/bunfig.toml's
+# Coverage ratchet for apps/api. Bun 1.4.4 fails a run below bunfig
+# `coverageThreshold` too; this gate keeps the documented floor explicit:
+# parse the text reporter's "All files" row (which honours apps/api/bunfig.toml's
 # coveragePathIgnorePatterns) and fail below the floor.
 #
 # Run from apps/api. Inputs (env): MIN_LINE, MIN_FUNC (percent integers).

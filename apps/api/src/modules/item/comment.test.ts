@@ -4,7 +4,6 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { and, eq } from "drizzle-orm";
-import { customAlphabet } from "nanoid";
 import { createDb } from "@/db";
 import { users } from "@/modules/account/users/schema";
 import { uploadAndReference } from "@/modules/file/file.service";
@@ -19,8 +18,7 @@ import {
 } from "@/modules/item/comment.service";
 import { createItem } from "@/modules/item/item.service";
 import { itemComments } from "@/modules/item/schema";
-
-const nanoid = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);
+import { nanoid } from "@/shared/lib/id";
 
 let db: AppDatabase;
 let dbPath: string;
@@ -113,7 +111,12 @@ describe("createComment", () => {
   test("rejects an unknown replyToId", async () => {
     const { userId, item } = await makeItem();
     await expect(
-      createComment(db, { itemId: item.id, authorId: userId, content: "c", replyToId: "missing-" }),
+      createComment(db, {
+        itemId: item.id,
+        authorId: userId,
+        content: "c",
+        replyToId: "missing-",
+      }),
     ).rejects.toThrow(/reply target.*not found/i);
   });
 
@@ -123,7 +126,12 @@ describe("createComment", () => {
     const otherParent = await createComment(db, { itemId: other.id, authorId: userId, content: "elsewhere" });
 
     await expect(
-      createComment(db, { itemId: item.id, authorId: userId, content: "c", replyToId: otherParent.id }),
+      createComment(db, {
+        itemId: item.id,
+        authorId: userId,
+        content: "c",
+        replyToId: otherParent.id,
+      }),
     ).rejects.toThrow(/different item/i);
   });
 
@@ -157,7 +165,12 @@ describe("listComments", () => {
   test("includeInternal=false hides internal rows", async () => {
     const { userId, item } = await makeItem();
     await createComment(db, { itemId: item.id, authorId: userId, content: "pub" });
-    await createComment(db, { itemId: item.id, authorId: userId, content: "priv", isInternal: true });
+    await createComment(db, {
+      itemId: item.id,
+      authorId: userId,
+      content: "priv",
+      isInternal: true,
+    });
 
     const seenByViewer = await listComments(db, item.id, { includeInternal: false });
     expect(seenByViewer.map(r => r.content)).toEqual(["pub"]);
@@ -185,7 +198,12 @@ describe("deleteComment", () => {
   test("hard deletes the row and sets reply_to_id=NULL on replies", async () => {
     const { userId, item } = await makeItem();
     const parent = await createComment(db, { itemId: item.id, authorId: userId, content: "p" });
-    const child = await createComment(db, { itemId: item.id, authorId: userId, content: "c", replyToId: parent.id });
+    const child = await createComment(db, {
+      itemId: item.id,
+      authorId: userId,
+      content: "c",
+      replyToId: parent.id,
+    });
 
     await deleteComment(db, parent.id);
 

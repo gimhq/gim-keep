@@ -1,21 +1,19 @@
-import type { Context } from "hono";
 import type { AppDatabase } from "@/db";
 import type { AppEnv } from "@/shared/lib/types";
 import { Hono } from "hono";
 import { z } from "zod";
-import { audit } from "@/modules/audit/audit.service";
+import { audit, auditMeta } from "@/modules/audit/audit.service";
 import {
-  buildDownloadResponse,
-  getFileById,
-  getReferenceById,
+  getOwnedReference,
   listAttachmentsByOwner,
   makeAttachmentView,
+  readUploadedFile,
   releaseReference,
+  sendAttachment,
   uploadAndReference,
 } from "@/modules/file";
 import { mountItemCommentRoutes } from "@/modules/item/comment.routes";
 import { NOOP_POLICY_LOGGER, policyContext } from "@/modules/policy";
-import { getClientIp } from "@/shared/lib/client-ip";
 import { AppError, ForbiddenError, NotFoundError } from "@/shared/lib/errors";
 import { describeRoute, errors, jsonCreated, jsonOk, jsonPaged, raw, SECURITY, TAGS, validator } from "@/shared/lib/openapi";
 import { authRequired } from "@/shared/middleware/auth";
@@ -42,7 +40,12 @@ const createSchema = z.object({
 const updateSchema = z.object({
   title: z.string().min(1).max(500).optional(),
   description: z.string().max(2000).nullable().optional(),
-  status: z.enum(["open", "in_progress", "done", "cancelled"]).optional(),
+  status: z.enum([
+    "open",
+    "in_progress",
+    "done",
+    "cancelled",
+  ]).optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
   assigneeId: z.string().min(1).nullable().optional(),
   dueDate: z.string().max(30).nullable().optional(),
@@ -54,7 +57,12 @@ const issueSchema = z.object({
   id: z.string(),
   title: z.string(),
   description: z.string().nullable(),
-  status: z.enum(["open", "in_progress", "done", "cancelled"]),
+  status: z.enum([
+    "open",
+    "in_progress",
+    "done",
+    "cancelled",
+  ]),
   priority: z.enum(["low", "medium", "high", "urgent"]),
   creatorId: z.string(),
   assigneeId: z.string().nullable(),
@@ -70,13 +78,6 @@ const attachmentViewSchema = z.object({
   mimetype: z.string(),
   createdAt: z.string(),
 });
-
-function auditMeta(c: Context) {
-  return {
-    ip: getClientIp(c),
-    userAgent: c.req.header("user-agent") ?? "unknown",
-  };
-}
 
 /** Resolve the `item` row behind an issue short id; 404 when absent. */
 async function requireItem(db: AppDatabase, shortId: string) {
@@ -118,8 +119,23 @@ export function issueRoutes() {
 
       const isAdmin = user.role === "admin";
       const result = isAdmin
-        ? await listIssues(db, { q, status, priority, assigneeId, creatorId, page, limit })
-        : await listMyIssues(db, { userId: user.id, q, status, priority, page, limit });
+        ? await listIssues(db, {
+            q,
+            status,
+            priority,
+            assigneeId,
+            creatorId,
+            page,
+            limit,
+          })
+        : await listMyIssues(db, {
+            userId: user.id,
+            q,
+            status,
+            priority,
+            page,
+            limit,
+          });
 
       return c.json({
         success: true,
@@ -162,7 +178,11 @@ export function issueRoutes() {
         resourceType: "issue",
         resourceId: issue.id,
         resourceName: issue.title,
-        ...(body.assigneeId ? { detail: { assigneeId: body.assigneeId } } : {}),
+        ...(body.assigneeId
+          ? {
+              detail: { assigneeId: body.assigneeId },
+            }
+          : {}),
         ...auditMeta(c),
         result: "success",
       });
@@ -197,7 +217,9 @@ export function issueRoutes() {
         ...errors(401, 403, 404),
       },
     }),
-    validator("param", z.object({ id: z.string() })),
+    validator("param", z.object({
+      id: z.string(),
+    })),
     async (c) => {
       const db = c.get("db");
       const id = c.req.valid("param").id;
@@ -222,7 +244,9 @@ export function issueRoutes() {
         ...errors(401, 403, 404, 422),
       },
     }),
-    validator("param", z.object({ id: z.string() })),
+    validator("param", z.object({
+      id: z.string(),
+    })),
     validator("json", updateSchema),
     async (c) => {
       const db = c.get("db");
@@ -267,7 +291,9 @@ export function issueRoutes() {
         resourceType: "issue",
         resourceId: id,
         resourceName: existing.title,
-        ...(Object.keys(detail).length > 0 ? { detail } : {}),
+        ...(Object.keys(detail).length > 0
+          ? { detail }
+          : {}),
         ...auditMeta(c),
         result: "success",
       });
@@ -366,16 +392,7 @@ export function issueRoutes() {
         throw new NotFoundError("Issue", id);
 
       const config = c.get("config");
-      const contentLength = Number(c.req.header("content-length") ?? "0");
-      if (contentLength > config.MAX_UPLOAD_BYTES) {
-        throw new AppError("Upload too large", 413, "UPLOAD_TOO_LARGE");
-      }
-
-      const formData = await c.req.formData();
-      const file = formData.get("file");
-      if (!(file instanceof File)) {
-        throw new AppError("No file provided", 400, "VALIDATION_ERROR");
-      }
+      const file = await readUploadedFile(c);
 
       const { reference, file: uploaded } = await uploadAndReference(db, config, {
         file,
@@ -450,14 +467,8 @@ export function issueRoutes() {
       const item = await resolveIssueItem(db, id);
       if (!item)
         throw new NotFoundError("Issue", id);
-      const ref = await getReferenceById(db, aid);
-      if (!ref || ref.ownerType !== "item_attachment" || ref.ownerId !== item.id)
-        throw new NotFoundError("Attachment", aid);
-      const file = await getFileById(db, ref.fileId);
-      if (!file)
-        throw new NotFoundError("File", aid);
-      const wantInline = c.req.query("inline") === "true";
-      return await buildDownloadResponse(c.get("config"), file, ref, { inline: wantInline });
+      const ref = await getOwnedReference(db, aid, "item_attachment", item.id);
+      return await sendAttachment(c, ref);
     },
   );
 
@@ -484,9 +495,7 @@ export function issueRoutes() {
       const item = await resolveIssueItem(db, id);
       if (!item)
         throw new NotFoundError("Issue", id);
-      const ref = await getReferenceById(db, aid);
-      if (!ref || ref.ownerType !== "item_attachment" || ref.ownerId !== item.id)
-        throw new NotFoundError("Attachment", aid);
+      const ref = await getOwnedReference(db, aid, "item_attachment", item.id);
       if (user.role !== "admin" && issue.creatorId !== user.id && ref.createdBy !== user.id) {
         throw new ForbiddenError();
       }
@@ -516,12 +525,21 @@ export function issueRoutes() {
       const item = await resolveIssueItem(db, idParam);
       if (!item)
         return null;
-      return { item, resource: issue, externalId: idParam, resourceName: issue.title };
+      return {
+        item,
+        resource: issue,
+        externalId: idParam,
+        resourceName: issue.title,
+      };
     },
     async permissions(db, user, subject) {
       // Same shape as document.routes: a minimal context so the framework
       // (and its per-request cache) answers, not a hand-rolled column rule.
-      const ctx = { db, logger: NOOP_POLICY_LOGGER, actor: { id: user.id, type: "user", role: user.role } };
+      const ctx = {
+        db,
+        logger: NOOP_POLICY_LOGGER,
+        actor: { id: user.id, type: "user", role: user.role },
+      };
       const canRead = await issueAccess.can(ctx, "issue:read", subject.item.id);
       const isHandler = await issueAccess.can(ctx, "issue:transition", subject.item.id);
       return {

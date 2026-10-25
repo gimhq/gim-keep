@@ -1,14 +1,14 @@
 import type { AppEnv } from "@/shared/lib/types";
 import { Hono } from "hono";
 import { z } from "zod";
-import { audit } from "@/modules/audit/audit.service";
+import { audit, auditMeta } from "@/modules/audit/audit.service";
 import { getClientIp } from "@/shared/lib/client-ip";
 import { buildContentDisposition } from "@/shared/lib/content-disposition";
 import { AppError } from "@/shared/lib/errors";
 import { describeRoute, errors, jsonOk, raw, SECURITY, TAGS, validator } from "@/shared/lib/openapi";
 import { adminRequired, authRequired } from "@/shared/middleware/auth";
 import { serviceTokenRequired } from "@/shared/middleware/service-token";
-import { streamJsonBackup, verifyDek } from "./export.service";
+import { streamJsonBackup, verifyDekChallenge } from "./export.service";
 import { getDataModules, getModuleNames } from "./registry";
 
 const exportBodySchema = z.object({
@@ -59,7 +59,9 @@ export function backupExportRoutes() {
       const config = c.get("config");
 
       const authz = c.req.header("authorization") ?? "";
-      const token = authz.startsWith("Bearer ") ? authz.slice(7) : "";
+      const token = authz.startsWith("Bearer ")
+        ? authz.slice(7)
+        : "";
       const bucket = tokenBucketKey(token);
 
       // Already streaming for this token → reject loudly so a misbehaving
@@ -74,11 +76,14 @@ export function backupExportRoutes() {
           resourceId: "database",
           resourceName: "database-backup-export",
           detail: { reason: "in-flight" },
-          ip: getClientIp(c),
+          ip: getClientIp(c, c.get("config")),
           userAgent: c.req.header("user-agent") ?? "service-token",
           result: "failure",
         });
-        return c.json({ success: false, error: { code: "RATE_LIMITED", message: "Another export is in progress for this token." } }, 429);
+        return c.json({
+          success: false,
+          error: { code: "RATE_LIMITED", message: "Another export is in progress for this token." },
+        }, 429);
       }
 
       // Min-interval gate. Counted from the moment the previous export
@@ -99,17 +104,22 @@ export function backupExportRoutes() {
               resourceId: "database",
               resourceName: "database-backup-export",
               detail: { reason: "min-interval", retryAfter },
-              ip: getClientIp(c),
+              ip: getClientIp(c, c.get("config")),
               userAgent: c.req.header("user-agent") ?? "service-token",
               result: "failure",
             });
-            return c.json({ success: false, error: { code: "RATE_LIMITED", message: `Backup export throttled. Retry after ${retryAfter}s.` } }, 429);
+            return c.json({
+              success: false,
+              error: { code: "RATE_LIMITED", message: `Backup export throttled. Retry after ${retryAfter}s.` },
+            }, 429);
           }
         }
       }
 
       backupExportInFlight.add(bucket);
-      const { modules, body } = streamJsonBackup(db, [...getModuleNames()]);
+      const { modules, body } = streamJsonBackup(db, [
+        ...getModuleNames(),
+      ]);
       const timestamp = new Date().toISOString().replace(RE_TIMESTAMP_CHARS, "-").slice(0, 19);
       await audit(db, c.get("logger"), {
         actorId: "system",
@@ -119,7 +129,7 @@ export function backupExportRoutes() {
         resourceId: "database",
         resourceName: "database-backup-export",
         detail: { modules, via: "service-token" },
-        ip: getClientIp(c),
+        ip: getClientIp(c, c.get("config")),
         userAgent: c.req.header("user-agent") ?? "service-token",
         result: "success",
       });
@@ -176,7 +186,10 @@ export function backupExportRoutes() {
       description: "Returns the available data modules and their dependencies. Admin only.",
       security: SECURITY.session,
       responses: {
-        ...jsonOk(z.array(z.object({ name: z.string(), deps: z.array(z.string()) })), "Available modules"),
+        ...jsonOk(z.array(z.object({
+          name: z.string(),
+          deps: z.array(z.string()),
+        })), "Available modules"),
         ...errors(401, 403),
       },
     }),
@@ -219,36 +232,7 @@ export function backupExportRoutes() {
         throw new AppError(`Unknown modules: ${invalidModules.join(", ")}`, 400, "INVALID_MODULES");
       }
 
-      const enc = c.get("encryption");
-      if (!enc.isEncryptionDisabled()) {
-        if (!body.challengeId || !body.encryptedDek) {
-          throw new AppError("Encryption verification required", 400, "ENCRYPTION_REQUIRED");
-        }
-
-        const { eciesDecrypt, hexToBytes } = await import("@app/shared");
-
-        const ephPrivKey = enc.consumeChallenge(body.challengeId);
-        if (!ephPrivKey) {
-          throw new AppError("Challenge expired or invalid. Refresh and try again.", 400, "INVALID_CHALLENGE");
-        }
-
-        const encryptedBytes = hexToBytes(body.encryptedDek);
-        let dekHex: string;
-        try {
-          const dekBytes = await eciesDecrypt(ephPrivKey, encryptedBytes);
-          dekHex = Array.from(dekBytes, b => b.toString(16).padStart(2, "0")).join("");
-        }
-        catch {
-          throw new AppError("Invalid decryption key", 403, "INVALID_KEY");
-        }
-
-        try {
-          await verifyDek(config.DB_PATH, dekHex);
-        }
-        catch {
-          throw new AppError("Invalid decryption key", 403, "INVALID_KEY");
-        }
-      }
+      await verifyDekChallenge(c.get("encryption"), config.DB_PATH, body.challengeId, body.encryptedDek);
 
       const { modules, body: stream } = streamJsonBackup(db, body.modules);
       const timestamp = new Date().toISOString().replace(RE_TIMESTAMP_CHARS, "-").slice(0, 19);
@@ -264,8 +248,7 @@ export function backupExportRoutes() {
         resourceId: "database",
         resourceName: "database-backup-export",
         detail: { modules },
-        ip: getClientIp(c),
-        userAgent: c.req.header("user-agent") ?? "unknown",
+        ...auditMeta(c),
         result: "success",
       });
 

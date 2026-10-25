@@ -5,20 +5,36 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { and, eq } from "drizzle-orm";
-import { customAlphabet } from "nanoid";
 import { createDb } from "@/db";
 import { users } from "@/modules/account/users/schema";
+import { nanoid } from "@/shared/lib/id";
 import { loadNamespaces } from "./namespace-config";
 import { createPermissionCache, defineResource } from "./permission";
 import { NOOP_POLICY_LOGGER } from "./policy-logger";
 import { relationTuples } from "./schema";
 
-const nanoid = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);
-
 const testNamespaces = [
   { name: "user" },
-  { name: "group", relations: { member: { union: [{ this: {} }] } } },
-  { name: "app", relations: { viewer: { union: [{ this: {} }] } } },
+  {
+    name: "group",
+    relations: {
+      member: {
+        union: [
+          { this: {} },
+        ],
+      },
+    },
+  },
+  {
+    name: "app",
+    relations: {
+      viewer: {
+        union: [
+          { this: {} },
+        ],
+      },
+    },
+  },
 ] as const;
 
 let db: AppDatabase;
@@ -54,7 +70,12 @@ afterEach(() => {
 });
 
 function ctxFor(): PolicyContext {
-  return { db, logger: NOOP_POLICY_LOGGER, actor: { id: actorId, type: "user" }, cache: createPermissionCache() };
+  return {
+    db,
+    logger: NOOP_POLICY_LOGGER,
+    actor: { id: actorId, type: "user" },
+    cache: createPermissionCache(),
+  };
 }
 
 describe("ResourceAccess request-scoped cache", () => {
@@ -69,7 +90,11 @@ describe("ResourceAccess request-scoped cache", () => {
 
   test("a repeat can() on the same context is answered from the cache, and grant/revoke clear it", async () => {
     const ctx = ctxFor();
-    await access.grant(ctx, { subject: { type: "user", id: actorId }, relation: "viewer", objectId: "o1" });
+    await access.grant(ctx, {
+      subject: { type: "user", id: actorId },
+      relation: "viewer",
+      objectId: "o1",
+    });
     expect(await access.can(ctx, "x:read", "o1")).toBe(true);
 
     // Pull the row out from under the engine. The same context must still
@@ -82,13 +107,25 @@ describe("ResourceAccess request-scoped cache", () => {
 
     // Writes through the facade invalidate: revoke of a now-missing tuple
     // is a no-op on the table but must still drop the cached answer.
-    await access.revoke(ctx, { subject: { type: "user", id: actorId }, relation: "viewer", objectId: "o1" });
+    await access.revoke(ctx, {
+      subject: { type: "user", id: actorId },
+      relation: "viewer",
+      objectId: "o1",
+    });
     expect(await access.can(ctx, "x:read", "o1")).toBe(false);
   });
 
   test("a context without a cache resolves every call live", async () => {
-    const ctx: PolicyContext = { db, logger: NOOP_POLICY_LOGGER, actor: { id: actorId, type: "user" } };
-    await access.grant(ctx, { subject: { type: "user", id: actorId }, relation: "viewer", objectId: "o2" });
+    const ctx: PolicyContext = {
+      db,
+      logger: NOOP_POLICY_LOGGER,
+      actor: { id: actorId, type: "user" },
+    };
+    await access.grant(ctx, {
+      subject: { type: "user", id: actorId },
+      relation: "viewer",
+      objectId: "o2",
+    });
     expect(await access.can(ctx, "x:read", "o2")).toBe(true);
     await db.delete(relationTuples).where(eq(relationTuples.objectId, "o2")).run();
     expect(await access.can(ctx, "x:read", "o2")).toBe(false);

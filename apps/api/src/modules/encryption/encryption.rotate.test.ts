@@ -5,13 +5,11 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { generateKeyPair } from "@app/shared";
 import { createClient } from "@libsql/client";
-import { customAlphabet } from "nanoid";
 import { createDb } from "@/db";
+import { nanoid } from "@/shared/lib/id";
 import { initEncryption, rotateDek } from "./encryption.service";
 import { readEncryptionMeta } from "./meta";
 import { EncryptionState } from "./state";
-
-const nanoid = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);
 
 let dir: string;
 
@@ -62,7 +60,10 @@ describe.skip("rotateDek (KNOWN RESIDUAL: reopen-after-rename under libsql encry
       // Seed a marker via a short-lived client (closed before rotation).
       const seed = createClient({ url: `file:${path}`, encryptionKey: dek1 });
       await seed.execute("CREATE TABLE rekey_marker (id INTEGER PRIMARY KEY, v TEXT)");
-      await seed.execute({ sql: "INSERT INTO rekey_marker (v) VALUES (?)", args: [`payload-${i}`] });
+      await seed.execute({
+        sql: "INSERT INTO rekey_marker (v) VALUES (?)",
+        args: [`payload-${i}`],
+      });
       seed.close();
       await liveDb!.checkpoint();
 

@@ -14,7 +14,7 @@ It is built on the [bun-tpl](https://github.com/zzci/bun-tpl) template
 - **API** — Hono on Bun, SQLite via Drizzle, optional ECIES at-rest encryption.
 - **Web** — React 19 + TanStack Router + Tailwind v4, file-based routes, dual EN/ZH i18n.
 - **Modules** — account/auth (OAuth + TOTP), groups, Zanzibar relation tuples, `item` base + `file` storage, documents, issues, cron, settings, audit logs, encryption admin, JSON backup.
-- **Build** — lode-compatible release asset (`index.js` + SPA + migrations) via `scripts/package.ts`; self-updates under the [lode](https://github.com/dotns/lode) supervisor.
+- **Build** — lode-compatible release asset (`index.js` + SPA + migrations) via `scripts/package.ts`; self-updates under the [lode](https://github.com/bkhq/lode) supervisor.
 
 ## Quick start
 

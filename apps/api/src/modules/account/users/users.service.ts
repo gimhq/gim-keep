@@ -1,5 +1,5 @@
 import type { AppDatabase } from "@/db";
-import { and, asc, count, eq, inArray, like, or } from "drizzle-orm";
+import { and, asc, count, eq, inArray, or } from "drizzle-orm";
 import {
   listGroupMembershipsForUser,
   listGroupMembershipsForUsers,
@@ -7,11 +7,13 @@ import {
 } from "@/modules/account/groups/group-members.service";
 import { groups } from "@/modules/account/groups/schema";
 import { users } from "@/modules/account/users/schema";
+import { escapeLike, likeEscaped } from "@/shared/lib/like";
 
 type UserRole = "admin" | "user";
 type UserStatus = "active" | "disabled";
 
-const userColumns = {
+/** The columns of a user that API responses may carry. */
+export const userColumns = {
   id: users.id,
   username: users.username,
   name: users.name,
@@ -39,8 +41,8 @@ export async function listUsers(db: AppDatabase, params: ListUsersParams) {
   const conditions = [];
 
   if (q) {
-    const pattern = `%${q}%`;
-    conditions.push(or(like(users.name, pattern), like(users.email, pattern), like(users.username, pattern)));
+    const pattern = `%${escapeLike(q)}%`;
+    conditions.push(or(likeEscaped(users.name, pattern), likeEscaped(users.email, pattern), likeEscaped(users.username, pattern)));
   }
   if (role) {
     conditions.push(eq(users.role, role));
@@ -49,12 +51,20 @@ export async function listUsers(db: AppDatabase, params: ListUsersParams) {
     conditions.push(eq(users.status, status));
   }
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const where = conditions.length > 0
+    ? and(...conditions)
+    : undefined;
 
   if (groupId) {
     const memberIds = await listUserIdsInGroup(db, groupId);
     if (memberIds.length === 0) {
-      return { data: [], total: 0, page, limit, totalPages: 0 };
+      return {
+        data: [],
+        total: 0,
+        page,
+        limit,
+        totalPages: 0,
+      };
     }
 
     const groupWhere = where
@@ -62,7 +72,9 @@ export async function listUsers(db: AppDatabase, params: ListUsersParams) {
       : inArray(users.id, [...memberIds]);
 
     const totalResult = await db
-      .select({ count: count() })
+      .select({
+        count: count(),
+      })
       .from(users)
       .where(groupWhere)
       .get();
@@ -78,10 +90,18 @@ export async function listUsers(db: AppDatabase, params: ListUsersParams) {
       .all();
 
     const dataWithGroups = await attachUserGroups(db, data);
-    return { data: dataWithGroups, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return {
+      data: dataWithGroups,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
-  const totalResult = await db.select({ count: count() }).from(users).where(where).get();
+  const totalResult = await db.select({
+    count: count(),
+  }).from(users).where(where).get();
   const total = totalResult?.count ?? 0;
 
   const data = await db
@@ -94,7 +114,13 @@ export async function listUsers(db: AppDatabase, params: ListUsersParams) {
     .all();
 
   const dataWithGroups = await attachUserGroups(db, data);
-  return { data: dataWithGroups, total, page, limit, totalPages: Math.ceil(total / limit) };
+  return {
+    data: dataWithGroups,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
 }
 
 async function attachUserGroups<T extends { id: string }>(db: AppDatabase, data: T[]) {
@@ -106,7 +132,9 @@ async function attachUserGroups<T extends { id: string }>(db: AppDatabase, data:
   if (memberships.length === 0)
     return data.map(u => ({ ...u, groups: [] as Array<{ id: string; name: string }> }));
 
-  const groupIds = [...new Set(memberships.map(m => m.groupId))];
+  const groupIds = [
+    ...new Set(memberships.map(m => m.groupId)),
+  ];
   const groupRows = await db
     .select({ id: groups.id, name: groups.name })
     .from(groups)

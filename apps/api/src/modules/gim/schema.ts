@@ -9,7 +9,11 @@ export const gimSlots = sqliteTable("gim_slots", {
   version: integer("version").notNull(),
   data: text("data").notNull(),
   updatedAt: text("updated_at").notNull().$defaultFn(() => new Date().toISOString()),
-}, t => [primaryKey({ columns: [t.userId, t.name] })]);
+}, t => [
+  primaryKey({
+    columns: [t.userId, t.name],
+  }),
+]);
 
 // An abuse report: the messages the reporter chose, in plaintext, as the
 // reporter's client decrypted them. Kept after either account is deleted.
@@ -26,7 +30,9 @@ export const gimReports = sqliteTable("gim_reports", {
   createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
   resolvedAt: text("resolved_at"),
   resolvedBy: text("resolved_by"),
-}, t => [index("idx_gim_reports_status_created").on(t.status, t.createdAt)]);
+}, t => [
+  index("idx_gim_reports_status_created").on(t.status, t.createdAt),
+]);
 
 export interface GimReportedMessage {
   readonly messageId: string;

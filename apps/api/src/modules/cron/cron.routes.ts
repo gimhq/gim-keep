@@ -4,9 +4,8 @@ import type { AppEnv } from "@/shared/lib/types";
 import { and, desc, eq, lt, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-import { audit } from "@/modules/audit/audit.service";
+import { audit, auditMeta } from "@/modules/audit/audit.service";
 import { cronJobLogs, cronJobs } from "@/modules/cron/schema";
-import { getClientIp } from "@/shared/lib/client-ip";
 import { AppError, NotFoundError } from "@/shared/lib/errors";
 import { nanoid } from "@/shared/lib/id";
 import { describeRoute, errors, jsonCreated, jsonOk, SECURITY, TAGS, validator } from "@/shared/lib/openapi";
@@ -88,13 +87,6 @@ const jobLogSchema = z.object({
   result: z.string().nullable(),
   error: z.string().nullable(),
 }).loose();
-
-function auditMeta(c: Context) {
-  return {
-    ip: getClientIp(c),
-    userAgent: c.req.header("user-agent") ?? "unknown",
-  };
-}
 
 export function cronRoutes() {
   const router = new Hono<AppEnv>();
@@ -208,14 +200,20 @@ export function cronRoutes() {
       const rows = await db
         .select()
         .from(cronJobs)
-        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .where(conditions.length > 0
+          ? and(...conditions)
+          : undefined)
         .orderBy(desc(cronJobs.createdAt))
         .limit(pageLimit + 1)
         .all();
 
       const hasMore = rows.length > pageLimit;
-      const page = hasMore ? rows.slice(0, pageLimit) : rows;
-      const nextCursor = hasMore ? page.at(-1)!.id : null;
+      const page = hasMore
+        ? rows.slice(0, pageLimit)
+        : rows;
+      const nextCursor = hasMore
+        ? page.at(-1)!.id
+        : null;
 
       const scheduler = getScheduler();
       const data = await Promise.all(page.map(r => serializeJob(db, scheduler?.baker ?? null, r)));
@@ -260,7 +258,10 @@ export function cronRoutes() {
         throw new AppError(`Job with name "${body.name}" already exists`, 409, "JOB_NAME_CONFLICT");
       }
 
-      const taskConfig: TaskConfig = { ...(body.config ?? {}), action: body.action };
+      const taskConfig: TaskConfig = {
+        ...(body.config ?? {}),
+        action: body.action,
+      };
       const validationError = await validateActionConfig(body.action, taskConfig);
       if (validationError) {
         throw new AppError(validationError, 400, "INVALID_ACTION_CONFIG");
@@ -275,7 +276,9 @@ export function cronRoutes() {
         taskType: actionDef?.spec.category ?? "custom",
         taskConfig: JSON.stringify(taskConfig),
         enabled: true,
-        ...(body.maxConsecutiveFailures !== undefined ? { maxConsecutiveFailures: body.maxConsecutiveFailures } : {}),
+        ...(body.maxConsecutiveFailures !== undefined
+          ? { maxConsecutiveFailures: body.maxConsecutiveFailures }
+          : {}),
       };
       await db.insert(cronJobs).values(insertValues).run();
 
@@ -318,7 +321,10 @@ export function cronRoutes() {
       description: "Soft-delete a job and detach it from the scheduler. Admin only.",
       security: SECURITY.session,
       responses: {
-        ...jsonOk(z.object({ deleted: z.literal(true), name: z.string() }), "Deleted cron job"),
+        ...jsonOk(z.object({
+          deleted: z.literal(true),
+          name: z.string(),
+        }), "Deleted cron job"),
         ...errors(401, 403, 404),
       },
     }),
@@ -357,7 +363,10 @@ export function cronRoutes() {
         result: "success",
       });
 
-      return c.json({ success: true, data: { deleted: true, name: row.name } });
+      return c.json({
+        success: true,
+        data: { deleted: true, name: row.name },
+      });
     },
   );
 
@@ -395,7 +404,9 @@ export function cronRoutes() {
       if (!job)
         throw new NotFoundError("Cron job", identifier);
 
-      const conditions = [eq(cronJobLogs.jobId, job.id)];
+      const conditions = [
+        eq(cronJobLogs.jobId, job.id),
+      ];
       if (q.status)
         conditions.push(eq(cronJobLogs.status, q.status));
       if (q.cursor)
@@ -410,8 +421,12 @@ export function cronRoutes() {
         .all();
 
       const hasMore = logs.length > pageLimit;
-      const page = hasMore ? logs.slice(0, pageLimit) : logs;
-      const nextCursor = hasMore ? page.at(-1)!.id : null;
+      const page = hasMore
+        ? logs.slice(0, pageLimit)
+        : logs;
+      const nextCursor = hasMore
+        ? page.at(-1)!.id
+        : null;
 
       return c.json({
         success: true,
@@ -486,7 +501,11 @@ export function cronRoutes() {
               catch {}
             },
           }
-        : { db, logger: c.get("logger"), config: c.get("config") };
+        : {
+            db,
+            logger: c.get("logger"),
+            config: c.get("config"),
+          };
       const logId = await executeTask(
         executorDeps,
         row.id,
@@ -515,7 +534,13 @@ export function cronRoutes() {
           triggered: true,
           name: row.name,
           log: log
-            ? { id: log.id, status: log.status, durationMs: log.durationMs, result: log.result, error: log.error }
+            ? {
+                id: log.id,
+                status: log.status,
+                durationMs: log.durationMs,
+                result: log.result,
+                error: log.error,
+              }
             : null,
         },
       });
@@ -531,7 +556,10 @@ export function cronRoutes() {
       description: "Disable a job and stop it ticking in the scheduler. Admin only.",
       security: SECURITY.session,
       responses: {
-        ...jsonOk(z.object({ paused: z.literal(true), name: z.string() }), "Paused cron job"),
+        ...jsonOk(z.object({
+          paused: z.literal(true),
+          name: z.string(),
+        }), "Paused cron job"),
         ...errors(401, 403, 404),
       },
     }),
@@ -563,7 +591,10 @@ export function cronRoutes() {
         result: "success",
       });
 
-      return c.json({ success: true, data: { paused: true, name: row.name } });
+      return c.json({
+        success: true,
+        data: { paused: true, name: row.name },
+      });
     },
   );
 
@@ -576,7 +607,10 @@ export function cronRoutes() {
       description: "Re-enable a job and re-sync it into the scheduler. Admin only.",
       security: SECURITY.session,
       responses: {
-        ...jsonOk(z.object({ resumed: z.literal(true), name: z.string() }), "Resumed cron job"),
+        ...jsonOk(z.object({
+          resumed: z.literal(true),
+          name: z.string(),
+        }), "Resumed cron job"),
         ...errors(401, 403, 404),
       },
     }),
@@ -603,7 +637,10 @@ export function cronRoutes() {
         result: "success",
       });
 
-      return c.json({ success: true, data: { resumed: true, name: row.name } });
+      return c.json({
+        success: true,
+        data: { resumed: true, name: row.name },
+      });
     },
   );
 

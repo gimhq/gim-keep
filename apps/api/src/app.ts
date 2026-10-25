@@ -14,7 +14,7 @@ import { passwordHashUnsupportedReason } from "./modules/account/auth/password";
 import { seedBootstrapAdmin } from "./modules/account/users/local-users.service";
 import { startAuditRetentionSweep } from "./modules/audit";
 import { assertCronSchedulerSupported, initCronActions, startCron } from "./modules/cron";
-import { docsCspRelax, mountDocs } from "./modules/docs";
+import { mountDocs } from "./modules/docs";
 import { bootstrapEncryption } from "./modules/encryption";
 import { EncryptionState as EncryptionStateCtor } from "./modules/encryption/state";
 import { initFileModule, startFileGcSweep } from "./modules/file";
@@ -128,9 +128,13 @@ export async function bootstrap(): Promise<BootstrapResult> {
 function resolveCorsOrigin(config: Config): string | string[] {
   if (config.CORS_ORIGIN) {
     const list = config.CORS_ORIGIN.split(",").map(s => s.trim()).filter(Boolean);
-    return list.length === 1 ? list[0]! : list;
+    return list.length === 1
+      ? list[0]!
+      : list;
   }
-  return config.NODE_ENV === "production" ? "" : "*";
+  return config.NODE_ENV === "production"
+    ? ""
+    : "*";
 }
 
 function installCommonMiddleware(
@@ -145,7 +149,9 @@ function installCommonMiddleware(
   // from `c.get("requestId")` and forward it as their own header.
   api.use("*", requestId());
   api.use("*", propagateRequestId);
-  api.use("*", cors({ origin: resolveCorsOrigin(config) }));
+  api.use("*", cors({
+    origin: resolveCorsOrigin(config),
+  }));
   api.use("*", (c, next) => {
     if (db !== undefined) {
       c.set("db", db);
@@ -193,12 +199,12 @@ export async function buildFullApp({ config, db, logger, encryption }: AppDeps) 
     await startCron({ db, logger, config });
   }
 
-  // OpenAPI spec (/openapi.json) + Scalar UI (/docs). Mounted BEFORE the
-  // route modules: Hono middleware only applies to routes registered after
-  // it, so mounting here keeps docs outside every module's `use("*")` auth /
-  // unlock guards (which would otherwise gate them). `openAPIRouteHandler`
-  // walks `api`'s route table lazily at request time, so routes registered
-  // below are still included in the spec. See modules/docs.
+  // OpenAPI spec (/openapi.json) + docs viewer redirect (/docs). Mounted
+  // BEFORE the route modules: Hono middleware only applies to routes
+  // registered after it, so mounting here keeps docs outside every module's
+  // `use("*")` auth / unlock guards (which would otherwise gate them).
+  // `openAPIRouteHandler` walks `api`'s route table lazily at request time,
+  // so routes registered below are still included in the spec. See modules/docs.
   const raw = rawRoutes();
   mountDocs(api, config, { raw });
 
@@ -233,7 +239,10 @@ export function buildLockedApp(config: Config, logger: Logger, encryption: Encry
   api.route("/", setupRoutes());
 
   api.all("*", (c) => {
-    return c.json({ success: false, error: { code: "SYSTEM_LOCKED", message: "System is locked. Provide decryption key to unlock." } }, 503);
+    return c.json({
+      success: false,
+      error: { code: "SYSTEM_LOCKED", message: "System is locked. Provide decryption key to unlock." },
+    }, 503);
   });
 
   api.onError(errorHandler);
@@ -303,7 +312,10 @@ export function buildRawApp(
   // the same prefix, and Hono runs matching handlers in registration order,
   // so a response from here ends the chain before any `/api` middleware.
   // Without it a mistyped endpoint would fall through to the `/api` stack.
-  raw.all("*", c => c.json({ success: false, error: { code: "NOT_FOUND", message: "Not found" } }, 404));
+  raw.all("*", c => c.json({
+    success: false,
+    error: { code: "NOT_FOUND", message: "Not found" },
+  }, 404));
 
   raw.onError(errorHandler);
   return raw;
@@ -313,11 +325,6 @@ export function buildOuterApp(api: Hono<AppEnv>, config: Config, raw?: Hono<AppE
   const app = new Hono<AppEnv>();
   const base = config.BASE_PATH;
   const rawPrefix = `${base}${RAW_API_PREFIX}`;
-
-  // Scoped CSP relaxation for the Scalar docs page. Registered before
-  // `secureHeaders` so its post-`next()` override wins over the strict global
-  // policy (which would otherwise block Scalar's CDN bundle). See modules/docs.
-  app.use(`${base}/api/docs`, docsCspRelax);
 
   // Security headers for every response (API JSON + static SPA HTML/JS/CSS).
   // SPA bundles are hashed under BASE_PATH; styles need 'unsafe-inline' for
@@ -384,7 +391,9 @@ export function buildOuterApp(api: Hono<AppEnv>, config: Config, raw?: Hono<AppE
     app.route(rawPrefix, raw);
   }
   app.route(`${base}/api`, api);
-  const serveSpa = spa ?? (hasStaticAssets() ? serveStaticAssets(base) : undefined);
+  const serveSpa = spa ?? (hasStaticAssets()
+    ? serveStaticAssets(base)
+    : undefined);
   if (serveSpa !== undefined) {
     // With a BASE_PATH the wildcard below does not reach "/"; without one
     // it already does.

@@ -30,7 +30,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
-import { findMissing, findUnused } from "./lib/i18n-scan";
+import { findMissing, findUnused, isObject } from "./lib/i18n-scan";
 
 const ROOT = resolve(import.meta.dir, "..");
 const LOCALES_DIR = resolve(ROOT, "apps/web/src/locales");
@@ -43,10 +43,6 @@ interface LeafEntry {
   readonly empty: boolean;
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 function extractTokens(value: string): Set<string> {
   const tokens = new Set<string>();
   for (const m of value.matchAll(RE_INTERPOLATION)) {
@@ -57,18 +53,22 @@ function extractTokens(value: string): Set<string> {
 
 function flattenLeaves(value: unknown, prefix = ""): LeafEntry[] {
   if (typeof value === "string") {
-    return [{
-      path: prefix,
-      value,
-      tokens: extractTokens(value),
-      empty: value.length === 0,
-    }];
+    return [
+      {
+        path: prefix,
+        value,
+        tokens: extractTokens(value),
+        empty: value.length === 0,
+      },
+    ];
   }
   if (!isObject(value))
     return [];
   const out: LeafEntry[] = [];
   for (const [k, v] of Object.entries(value)) {
-    const next = prefix ? `${prefix}.${k}` : k;
+    const next = prefix
+      ? `${prefix}.${k}`
+      : k;
     out.push(...flattenLeaves(v, next));
   }
   return out;

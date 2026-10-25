@@ -2,8 +2,7 @@ import type { AppEnv } from "@/shared/lib/types";
 import { Hono } from "hono";
 import { z } from "zod";
 import { getUserById } from "@/modules/account/users/users.service";
-import { audit } from "@/modules/audit/audit.service";
-import { getClientIp } from "@/shared/lib/client-ip";
+import { audit, auditMeta } from "@/modules/audit/audit.service";
 import { AppError, NotFoundError } from "@/shared/lib/errors";
 import { describeRoute, errors, jsonCreated, jsonOk, SECURITY, TAGS, validator } from "@/shared/lib/openapi";
 import { adminRequired, authRequired } from "@/shared/middleware/auth";
@@ -39,7 +38,9 @@ const groupMemberSchema = z.object({
   joinedAt: z.string(),
 });
 
-const groupIdParam = z.object({ id: z.string() });
+const groupIdParam = z.object({
+  id: z.string(),
+});
 
 const createGroupSchema = z.object({
   name: z.string().min(1).max(100),
@@ -81,7 +82,9 @@ export function groupRoutes() {
       description: "All groups with member counts. Admin only.",
       security: SECURITY.session,
       responses: {
-        ...jsonOk(z.array(groupSchema.extend({ memberCount: z.number() })), "Groups"),
+        ...jsonOk(z.array(groupSchema.extend({
+          memberCount: z.number(),
+        })), "Groups"),
         ...errors(401, 403),
       },
     }),
@@ -118,7 +121,9 @@ export function groupRoutes() {
 
       const group = await createGroup(db, {
         name: body.name,
-        ...body.description ? { description: body.description } : {},
+        ...body.description
+          ? { description: body.description }
+          : {},
       });
       const actor = c.get("user")!;
       await audit(db, c.get("logger"), {
@@ -128,8 +133,7 @@ export function groupRoutes() {
         resourceType: "group",
         resourceId: group.id,
         resourceName: group.name,
-        ip: getClientIp(c),
-        userAgent: c.req.header("user-agent") ?? "unknown",
+        ...auditMeta(c),
         result: "success",
       });
       return c.json({ success: true, data: group }, 201);
@@ -196,8 +200,12 @@ export function groupRoutes() {
       }
 
       const updated = await updateGroup(db, id, {
-        ...body.name ? { name: body.name } : {},
-        ...body.description !== undefined ? { description: body.description } : {},
+        ...body.name
+          ? { name: body.name }
+          : {},
+        ...body.description !== undefined
+          ? { description: body.description }
+          : {},
       });
       const actor = c.get("user")!;
       await audit(db, c.get("logger"), {
@@ -207,8 +215,7 @@ export function groupRoutes() {
         resourceType: "group",
         resourceId: id,
         resourceName: existing.name,
-        ip: getClientIp(c),
-        userAgent: c.req.header("user-agent") ?? "unknown",
+        ...auditMeta(c),
         result: "success",
       });
       return c.json({ success: true, data: updated });
@@ -247,8 +254,7 @@ export function groupRoutes() {
         resourceType: "group",
         resourceId: id,
         resourceName: existing.name,
-        ip: getClientIp(c),
-        userAgent: c.req.header("user-agent") ?? "unknown",
+        ...auditMeta(c),
         result: "success",
       });
       return c.json({ success: true, data: null });
@@ -328,8 +334,7 @@ export function groupRoutes() {
         resourceId: id,
         resourceName: group.name,
         detail: { userId: body.userId, userName: user.name },
-        ip: getClientIp(c),
-        userAgent: c.req.header("user-agent") ?? "unknown",
+        ...auditMeta(c),
         result: "success",
       });
       return c.json({ success: true, data: null }, 201);
@@ -349,7 +354,10 @@ export function groupRoutes() {
       },
     }),
     adminRequired,
-    validator("param", z.object({ id: z.string(), userId: z.string() })),
+    validator("param", z.object({
+      id: z.string(),
+      userId: z.string(),
+    })),
     async (c) => {
       const db = c.get("db");
       const { id, userId } = c.req.valid("param");
@@ -374,8 +382,7 @@ export function groupRoutes() {
         resourceId: id,
         resourceName: group.name,
         detail: { userId },
-        ip: getClientIp(c),
-        userAgent: c.req.header("user-agent") ?? "unknown",
+        ...auditMeta(c),
         result: "success",
       });
       return c.json({ success: true, data: null });

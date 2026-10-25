@@ -16,7 +16,9 @@ process.env.VITE_APP_DISPLAY_NAME = APP_DISPLAY_NAME;
 // Mirror apps/api/src/config.ts: unset / empty means root ("/"); otherwise
 // normalise to "/<x>/" (trailing slash required by Vite's `base`).
 const trimmedBase = (process.env.BASE_PATH ?? "").replace(/^\/+|\/+$/g, "");
-const base = trimmedBase ? `/${trimmedBase}/` : "/";
+const base = trimmedBase
+  ? `/${trimmedBase}/`
+  : "/";
 
 // Dev only. With a base path Vite answers "/" with a redirect to the base, so
 // a home page at the origin root (HOME_PAGE=root, which the API serves
@@ -76,7 +78,7 @@ export default defineConfig({
             return "vendor-react";
           if (/node_modules[\\/]@tanstack[\\/]/.test(id))
             return "vendor-tanstack";
-          if (/node_modules[\\/](?:i18next|react-i18next|i18next-browser-languagedetector)[\\/]/.test(id))
+          if (/node_modules[\\/](?:i18next|react-i18next)[\\/]/.test(id))
             return "vendor-i18n";
           if (/node_modules[\\/](?:@base-ui|lucide-react|sonner|class-variance-authority|tailwind-merge|clsx|tw-animate-css)[\\/]/.test(id))
             return "vendor-ui";

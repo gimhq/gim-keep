@@ -1,13 +1,16 @@
+import type { Config } from "@/config";
 import type { AppDatabase } from "@/db";
 import type { Logger } from "@/shared/lib/logger";
+import type { AppEnv } from "@/shared/lib/types";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { eq } from "drizzle-orm";
+import { Hono } from "hono";
 import { createDb } from "@/db";
 import { auditEvents } from "@/modules/audit/schema";
-import { audit, getAuditEventById, listAuditEvents } from "./audit.service";
+import { audit, auditMeta, getAuditEventById, listAuditEvents } from "./audit.service";
 
 let db: AppDatabase;
 let dir: string;
@@ -142,9 +145,33 @@ describe("listAuditEvents", () => {
     // Seed three events spanning two actors / two actions / two timestamps.
     const base = Date.parse("2026-05-01T00:00:00Z");
     const rows = [
-      { id: "e_1", actorId: "u_1", action: "issues.create", resourceType: "issue", resourceId: "t_1", result: "success", createdAt: new Date(base).toISOString() },
-      { id: "e_2", actorId: "u_2", action: "issues.create", resourceType: "issue", resourceId: "t_2", result: "failure", createdAt: new Date(base + 1000).toISOString() },
-      { id: "e_3", actorId: "u_1", action: "auth.login", resourceType: "session", resourceId: "s_1", result: "success", createdAt: new Date(base + 2000).toISOString() },
+      {
+        id: "e_1",
+        actorId: "u_1",
+        action: "issues.create",
+        resourceType: "issue",
+        resourceId: "t_1",
+        result: "success",
+        createdAt: new Date(base).toISOString(),
+      },
+      {
+        id: "e_2",
+        actorId: "u_2",
+        action: "issues.create",
+        resourceType: "issue",
+        resourceId: "t_2",
+        result: "failure",
+        createdAt: new Date(base + 1000).toISOString(),
+      },
+      {
+        id: "e_3",
+        actorId: "u_1",
+        action: "auth.login",
+        resourceType: "session",
+        resourceId: "s_1",
+        result: "success",
+        createdAt: new Date(base + 2000).toISOString(),
+      },
     ];
     for (const r of rows) {
       await db.insert(auditEvents).values({
@@ -225,5 +252,29 @@ describe("getAuditEventById", () => {
 
     expect((await getAuditEventById(db, "e_x"))?.actorId).toBe("u");
     expect(await getAuditEventById(db, "missing")).toBeUndefined();
+  });
+});
+
+describe("auditMeta", () => {
+  async function meta(config: Partial<Config>, headers: Record<string, string>) {
+    const app = new Hono<AppEnv>();
+    app.get("/", (c) => {
+      c.set("config", config as Config);
+      return c.json(auditMeta(c));
+    });
+    const res = await app.request("/", { headers }, {
+      IP: { address: "10.0.0.2" },
+    });
+    return await res.json();
+  }
+
+  test("records the client behind a trusted proxy, not the proxy", async () => {
+    expect(await meta({ TRUST_PROXY: true }, { "x-forwarded-for": "203.0.113.7", "user-agent": "ua" }))
+      .toEqual({ ip: "203.0.113.7", userAgent: "ua" });
+  });
+
+  test("ignores forwarding headers without TRUST_PROXY", async () => {
+    expect(await meta({ TRUST_PROXY: false }, { "x-forwarded-for": "203.0.113.7" }))
+      .toEqual({ ip: "10.0.0.2", userAgent: "unknown" });
   });
 });

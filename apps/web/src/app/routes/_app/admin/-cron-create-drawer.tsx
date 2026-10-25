@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
-import { ActionMetaCard, DynamicActionFields } from "./-cron-dynamic-fields";
+import { ActionMetaCard, DynamicActionFields, FieldHint } from "./-cron-dynamic-fields";
 import { initialConfigFor } from "./-cron-form";
 import { PRESET_VALUES, SCHEDULE_PRESETS } from "./-cron-types";
 
@@ -159,7 +159,9 @@ export function CreateJobDrawer({
                       <SelectValue placeholder={t("form.schedulePreset")}>
                         {(value: string) => {
                           const preset = SCHEDULE_PRESETS.find(p => p.value === value);
-                          return preset ? `${t(`presets.${preset.key}`)} · ${preset.value}` : value;
+                          return preset
+                            ? `${t(`presets.${preset.key}`)} · ${preset.value}`
+                            : value;
                         }}
                       </SelectValue>
                     </SelectTrigger>
@@ -234,7 +236,11 @@ export function CreateJobDrawer({
                   // stale per-input state from the previously selected
                   // action doesn't bleed through.
                   const next = actions.find(a => a.name === v);
-                  setForm(prev => ({ ...prev, action: v, config: initialConfigFor(next) }));
+                  setForm(prev => ({
+                    ...prev,
+                    action: v,
+                    config: initialConfigFor(next),
+                  }));
                 }}
               >
                 <SelectTrigger className="w-full">
@@ -263,7 +269,9 @@ export function CreateJobDrawer({
               </Select>
               {selectedAction && selectedAction.requiredKeys.length > 0 && (
                 <FieldHint>
-                  {t("form.actionRequiredFields", { fields: selectedAction.requiredKeys.join(", ") })}
+                  {t("form.actionRequiredFields", {
+                    fields: selectedAction.requiredKeys.join(", "),
+                  })}
                 </FieldHint>
               )}
             </FieldRow>
@@ -280,7 +288,10 @@ export function CreateJobDrawer({
                 action={selectedAction}
                 config={form.config}
                 setConfig={(updater) => {
-                  setForm(prev => ({ ...prev, config: updater(prev.config) }));
+                  setForm(prev => ({
+                    ...prev,
+                    config: updater(prev.config),
+                  }));
                 }}
               />
             </DrawerSection>
@@ -300,7 +311,9 @@ export function CreateJobDrawer({
             {t("form.cancel")}
           </Button>
           <Button disabled={submitting} onClick={onSubmit}>
-            {submitting ? t("form.submitting") : t("form.submit")}
+            {submitting
+              ? t("form.submitting")
+              : t("form.submit")}
           </Button>
         </div>
       </div>
@@ -314,11 +327,6 @@ export function CreateJobDrawer({
 function FieldRow({ children }: { readonly children: ReactNode }) {
   return <div className="space-y-2">{children}</div>;
 }
-
-function FieldHint({ children }: { readonly children: ReactNode }) {
-  return <p className="text-xs text-muted-foreground">{children}</p>;
-}
-
 // Visual grouping used by the create-job drawer so its three sections
 // (job metadata / action / per-action config) read as distinct chunks
 // without nesting cards inside cards.

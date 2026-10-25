@@ -7,17 +7,24 @@ function ctx(headers: Record<string, string | undefined>, env?: Record<string, u
     req: {
       // Mirrors Hono: no argument returns every header, a name returns that
       // one. Several call sites read a single header by name.
-      header: (name?: string) => (name === undefined ? headers : headers[name.toLowerCase()]),
+      header: (name?: string) => (name === undefined
+        ? headers
+        : headers[name.toLowerCase()]),
     },
     env,
   } as unknown as Context;
 }
 
 describe("getClientIp (default — TRUST_PROXY=false)", () => {
+  const cfg = { TRUST_PROXY: false } as const;
+
   test("ignores X-Forwarded-For", () => {
     expect(
       getClientIp(
-        ctx({ "x-forwarded-for": "203.0.113.5, 10.0.0.1" }, { IP: { address: "127.0.0.1" } }),
+        ctx({ "x-forwarded-for": "203.0.113.5, 10.0.0.1" }, {
+          IP: { address: "127.0.0.1" },
+        }),
+        cfg,
       ),
     ).toBe("127.0.0.1");
   });
@@ -25,7 +32,10 @@ describe("getClientIp (default — TRUST_PROXY=false)", () => {
   test("ignores CF-Connecting-IP", () => {
     expect(
       getClientIp(
-        ctx({ "cf-connecting-ip": "198.51.100.7" }, { IP: { address: "10.0.0.5" } }),
+        ctx({ "cf-connecting-ip": "198.51.100.7" }, {
+          IP: { address: "10.0.0.5" },
+        }),
+        cfg,
       ),
     ).toBe("10.0.0.5");
   });
@@ -35,31 +45,27 @@ describe("getClientIp (default — TRUST_PROXY=false)", () => {
       getClientIp(
         ctx(
           { "true-client-ip": "198.51.100.42", "x-real-ip": "198.51.100.99" },
-          { IP: { address: "192.0.2.42" } },
+          {
+            IP: { address: "192.0.2.42" },
+          },
         ),
+        cfg,
       ),
     ).toBe("192.0.2.42");
   });
 
   test("uses connection peer IP from c.env.IP.address", () => {
-    expect(getClientIp(ctx({}, { IP: { address: "127.0.0.1" } }))).toBe("127.0.0.1");
+    expect(getClientIp(ctx({}, {
+      IP: { address: "127.0.0.1" },
+    }), cfg)).toBe("127.0.0.1");
   });
 
   test("returns 'unknown' when neither headers nor peer IP are available", () => {
-    expect(getClientIp(ctx({}, {}))).toBe("unknown");
+    expect(getClientIp(ctx({}, {}), cfg)).toBe("unknown");
   });
 
   test("falls back to CF-Connecting-IP when the runtime exposes no socket", () => {
-    expect(getClientIp(ctx({ "cf-connecting-ip": "198.51.100.7" }, {}))).toBe("198.51.100.7");
-  });
-
-  test("explicit TRUST_PROXY=false has the same effect as omitting config", () => {
-    expect(
-      getClientIp(
-        ctx({ "x-forwarded-for": "203.0.113.5" }, { IP: { address: "127.0.0.1" } }),
-        { TRUST_PROXY: false },
-      ),
-    ).toBe("127.0.0.1");
+    expect(getClientIp(ctx({ "cf-connecting-ip": "198.51.100.7" }, {}), cfg)).toBe("198.51.100.7");
   });
 });
 
@@ -74,7 +80,9 @@ describe("getClientIp (TRUST_PROXY=true)", () => {
       getClientIp(
         ctx(
           { "x-real-ip": "198.51.100.7", "x-forwarded-for": "203.0.113.5, 10.0.0.1" },
-          { IP: { address: "127.0.0.1" } },
+          {
+            IP: { address: "127.0.0.1" },
+          },
         ),
         cfg,
       ),
@@ -84,7 +92,9 @@ describe("getClientIp (TRUST_PROXY=true)", () => {
   test("falls back to rightmost entry of X-Forwarded-For when X-Real-IP is missing", () => {
     expect(
       getClientIp(
-        ctx({ "x-forwarded-for": "203.0.113.5, 10.0.0.1" }, { IP: { address: "127.0.0.1" } }),
+        ctx({ "x-forwarded-for": "203.0.113.5, 10.0.0.1" }, {
+          IP: { address: "127.0.0.1" },
+        }),
         cfg,
       ),
     ).toBe("10.0.0.1");
@@ -92,18 +102,24 @@ describe("getClientIp (TRUST_PROXY=true)", () => {
 
   test("uses the only XFF entry when there is one", () => {
     expect(
-      getClientIp(ctx({ "x-forwarded-for": "192.0.2.1" }, { IP: { address: "127.0.0.1" } }), cfg),
+      getClientIp(ctx({ "x-forwarded-for": "192.0.2.1" }, {
+        IP: { address: "127.0.0.1" },
+      }), cfg),
     ).toBe("192.0.2.1");
   });
 
   test("normalises mixed-case header keys", () => {
     expect(
-      getClientIp(ctx({ "X-Forwarded-For": "192.0.2.1" }, { IP: { address: "127.0.0.1" } }), cfg),
+      getClientIp(ctx({ "X-Forwarded-For": "192.0.2.1" }, {
+        IP: { address: "127.0.0.1" },
+      }), cfg),
     ).toBe("192.0.2.1");
   });
 
   test("falls back to peer IP when no proxy headers are present", () => {
-    expect(getClientIp(ctx({}, { IP: { address: "127.0.0.1" } }), cfg)).toBe("127.0.0.1");
+    expect(getClientIp(ctx({}, {
+      IP: { address: "127.0.0.1" },
+    }), cfg)).toBe("127.0.0.1");
   });
 
   test("returns 'unknown' when neither headers nor peer IP are available", () => {

@@ -5,9 +5,9 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { eq } from "drizzle-orm";
-import { customAlphabet } from "nanoid";
 import { createDb } from "@/db";
 import { cronJobLogs, cronJobs } from "@/db/schema";
+import { nanoid } from "@/shared/lib/id";
 import {
   __resetAndReinitActionsForTests,
   defineAction,
@@ -40,8 +40,6 @@ function fixtureAction(name: string, execute: ActionExecutor) {
     execute,
   });
 }
-
-const nanoid = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);
 
 let db: AppDatabase;
 let dbPath: string;
@@ -190,7 +188,14 @@ describe("action registry", () => {
         displayName: "needs-field",
         description: "test",
         category: "custom",
-        inputs: [{ key: "target", label: "Target", type: "string", required: true }],
+        inputs: [
+          {
+            key: "target",
+            label: "Target",
+            type: "string",
+            required: true,
+          },
+        ],
       },
       execute: async () => "ok",
     }));
@@ -205,7 +210,15 @@ describe("action registry", () => {
         displayName: "needs-number",
         description: "test",
         category: "custom",
-        inputs: [{ key: "n", label: "N", type: "number", min: 1, max: 10 }],
+        inputs: [
+          {
+            key: "n",
+            label: "N",
+            type: "number",
+            min: 1,
+            max: 10,
+          },
+        ],
       },
       execute: async () => "ok",
     }));
@@ -221,12 +234,17 @@ describe("action registry", () => {
         displayName: "needs-select",
         description: "test",
         category: "custom",
-        inputs: [{
-          key: "color",
-          label: "Color",
-          type: "select",
-          options: [{ value: "red", label: "Red" }, { value: "blue", label: "Blue" }],
-        }],
+        inputs: [
+          {
+            key: "color",
+            label: "Color",
+            type: "select",
+            options: [
+              { value: "red", label: "Red" },
+              { value: "blue", label: "Blue" },
+            ],
+          },
+        ],
       },
       execute: async () => "ok",
     }));
@@ -317,7 +335,12 @@ describe("executeTask", () => {
 
     for (let i = 0; i < DEFAULT_MAX_CONSECUTIVE_FAILURES; i++) {
       await executeTask(
-        { db, logger: fakeLogger, config: fakeConfig, onAutoPause: onPause },
+        {
+          db,
+          logger: fakeLogger,
+          config: fakeConfig,
+          onAutoPause: onPause,
+        },
         jobId,
         "j-fail",
         { action: "always-fail" },
@@ -355,7 +378,12 @@ describe("executeTask", () => {
     // 4 failures < threshold → still enabled.
     for (let i = 0; i < 4; i++) {
       await executeTask(
-        { db, logger: fakeLogger, config: fakeConfig, onAutoPause: onPause },
+        {
+          db,
+          logger: fakeLogger,
+          config: fakeConfig,
+          onAutoPause: onPause,
+        },
         jobId,
         "j-custom",
         { action: "custom-fail" },
@@ -366,7 +394,12 @@ describe("executeTask", () => {
 
     // 5th failure trips it.
     await executeTask(
-      { db, logger: fakeLogger, config: fakeConfig, onAutoPause: onPause },
+      {
+        db,
+        logger: fakeLogger,
+        config: fakeConfig,
+        onAutoPause: onPause,
+      },
       jobId,
       "j-custom",
       { action: "custom-fail" },
@@ -387,7 +420,12 @@ describe("executeTask", () => {
     // Run far more than the default threshold — nothing should pause it.
     for (let i = 0; i < 10; i++) {
       await executeTask(
-        { db, logger: fakeLogger, config: fakeConfig, onAutoPause: onPause },
+        {
+          db,
+          logger: fakeLogger,
+          config: fakeConfig,
+          onAutoPause: onPause,
+        },
         jobId,
         "j-forever",
         { action: "forever-fail" },
@@ -529,13 +567,22 @@ describe("initActions defaultEnabled gating", () => {
   });
 
   test("listing `shell` in enabledActions registers it alongside the always-on set", () => {
-    __resetAndReinitActionsForTests({ enabledActions: ["shell"] });
-    expect(getActionNames().sort()).toEqual(["http-request", "log-cleanup", "shell", "soft-delete-cleanup"]);
+    __resetAndReinitActionsForTests({
+      enabledActions: ["shell"],
+    });
+    expect(getActionNames().sort()).toEqual([
+      "http-request",
+      "log-cleanup",
+      "shell",
+      "soft-delete-cleanup",
+    ]);
     expect(getAction("shell")?.spec.dangerous).toBe(true);
   });
 
   test("enabledActions referencing an unknown action is silently ignored", () => {
-    __resetAndReinitActionsForTests({ enabledActions: ["does-not-exist"] });
+    __resetAndReinitActionsForTests({
+      enabledActions: ["does-not-exist"],
+    });
     expect(getActionNames().sort()).toEqual(["http-request", "log-cleanup", "soft-delete-cleanup"]);
   });
 });

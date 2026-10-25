@@ -3,10 +3,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { customAlphabet } from "nanoid";
 import { createDb } from "@/db";
 import { DIRECT_MEMBER, groupMembers, groups } from "@/modules/account/groups/schema";
 import { DIRECT_SUBJECT, relationTuples } from "@/modules/policy/schema";
+import { nanoid } from "@/shared/lib/id";
 import { loadNamespaces } from "./namespace-config";
 import { check, expand, listUserResources } from "./zanzibar.engine";
 
@@ -15,22 +15,55 @@ const testNamespaces = [
   {
     name: "group",
     relations: {
-      member: { union: [{ this: {} }] },
+      member: {
+        union: [
+          { this: {} },
+        ],
+      },
     },
   },
   {
     name: "app",
     relations: {
-      viewer: { union: [{ this: {} }, { computed_userset: { relation: "manager" } }] },
-      manager: { union: [{ this: {} }, { computed_userset: { relation: "admin" } }] },
-      admin: { union: [{ this: {} }] },
+      viewer: {
+        union: [
+          { this: {} },
+          {
+            computed_userset: { relation: "manager" },
+          },
+        ],
+      },
+      manager: {
+        union: [
+          { this: {} },
+          {
+            computed_userset: { relation: "admin" },
+          },
+        ],
+      },
+      admin: {
+        union: [
+          { this: {} },
+        ],
+      },
     },
   },
   {
     name: "host",
     relations: {
-      viewer: { union: [{ this: {} }, { computed_userset: { relation: "operator" } }] },
-      operator: { union: [{ this: {} }] },
+      viewer: {
+        union: [
+          { this: {} },
+          {
+            computed_userset: { relation: "operator" },
+          },
+        ],
+      },
+      operator: {
+        union: [
+          { this: {} },
+        ],
+      },
     },
   },
   // Self-referential tuple_to_userset: folder:child#parent@folder:root, and
@@ -38,27 +71,53 @@ const testNamespaces = [
   {
     name: "folder",
     relations: {
-      viewer: { union: [{ this: {} }, { tuple_to_userset: { tupleset: "parent", computed_userset: "viewer" } }] },
-      parent: { union: [{ this: {} }] },
+      viewer: {
+        union: [
+          { this: {} },
+          {
+            tuple_to_userset: { tupleset: "parent", computed_userset: "viewer" },
+          },
+        ],
+      },
+      parent: {
+        union: [
+          { this: {} },
+        ],
+      },
     },
   },
   // Cross-namespace tuple_to_userset: doc:d#parent@folder:f.
   {
     name: "doc",
     relations: {
-      viewer: { union: [{ this: {} }, { tuple_to_userset: { tupleset: "parent", computed_userset: "viewer" } }] },
-      parent: { union: [{ this: {} }] },
+      viewer: {
+        union: [
+          { this: {} },
+          {
+            tuple_to_userset: { tupleset: "parent", computed_userset: "viewer" },
+          },
+        ],
+      },
+      parent: {
+        union: [
+          { this: {} },
+        ],
+      },
     },
   },
 ] as const;
-
-const nanoid = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);
 
 async function ensureGroup(db: AppDatabase, id: string) {
   // `group_members.group_id` is a FK to `groups.id`; tests insert into the
   // edge table directly so backfill the parent row on demand.
   const now = new Date().toISOString();
-  await db.insert(groups).values({ id, name: id, description: null, createdAt: now, updatedAt: now }).onConflictDoNothing().run();
+  await db.insert(groups).values({
+    id,
+    name: id,
+    description: null,
+    createdAt: now,
+    updatedAt: now,
+  }).onConflictDoNothing().run();
 }
 
 async function insertTuple(

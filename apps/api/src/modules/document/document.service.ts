@@ -1,31 +1,16 @@
+import type { SQL } from "drizzle-orm";
 import type { AppDatabase } from "@/db";
 import type { PolicyContext } from "@/modules/policy";
-import { and, count, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { groups } from "@/modules/account/groups/schema";
 import { documentAccess } from "@/modules/document/document.permission";
 import { documentDetails } from "@/modules/document/schema";
+import { insertItem } from "@/modules/item/item.service";
 import { items } from "@/modules/item/schema";
 import { NOOP_POLICY_LOGGER } from "@/modules/policy";
 import { DIRECT_SUBJECT, relationTuples } from "@/modules/policy/schema";
-import { nanoid, ulid } from "@/shared/lib/id";
-
-const LIKE_SPECIAL_RE = /[%_]/g;
-
-function escapeLike(v: string): string {
-  return v.replace(LIKE_SPECIAL_RE, "\\$&");
-}
-
-const ULID_ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz";
-function ulidTimestamp(id: string): string {
-  let ms = 0;
-  for (let i = 0; i < 10; i++) {
-    const code = ULID_ALPHABET.indexOf(id[i] ?? "");
-    if (code < 0)
-      return new Date().toISOString();
-    ms = ms * 32 + code;
-  }
-  return new Date(ms).toISOString();
-}
+import { nanoid, ulid, ulidTimestamp } from "@/shared/lib/id";
+import { escapeLike, likeEscaped } from "@/shared/lib/like";
 
 /** Composite document row returned by routes and tests. */
 export interface DocumentRow {
@@ -106,17 +91,15 @@ export async function createDocument(db: AppDatabase, input: CreateDocumentInput
   }
 
   await db.transaction(async (tx) => {
-    await tx.insert(items).values({
+    await insertItem(tx, {
       id,
       shortId,
       type: "document",
       title: input.title,
       status: "active",
       creatorId: input.creatorId,
-      version: 1,
-      deletedAt: null,
-      updatedAt: now,
-    }).run();
+      now,
+    });
 
     await tx.insert(documentDetails).values({
       itemId: id,
@@ -124,19 +107,6 @@ export async function createDocument(db: AppDatabase, input: CreateDocumentInput
       tags: JSON.stringify(input.tags ?? []),
       parentId: parentItemId,
       commentsLocked: false,
-    }).run();
-
-    // owner tuple
-    await tx.insert(relationTuples).values({
-      id: nanoid(),
-      namespace: "item",
-      objectId: id,
-      relation: "owner",
-      subjectNamespace: "user",
-      subjectId: input.creatorId,
-      subjectRelation: DIRECT_SUBJECT,
-      createdBy: input.creatorId,
-      createdAt: now,
     }).run();
 
     if (parentItemId) {
@@ -300,7 +270,10 @@ export async function softDeleteDocument(db: AppDatabase, shortId: string): Prom
       )
       SELECT id FROM descendants
     `);
-    const idsToDelete = [item.id, ...desc.map(r => r.id)];
+    const idsToDelete = [
+      item.id,
+      ...desc.map(r => r.id),
+    ];
 
     await tx.update(items)
       .set({ deletedAt: now, updatedAt: now, version: sql`${items.version} + 1` })
@@ -367,11 +340,14 @@ export interface ListDocumentsParams {
 }
 
 async function buildDocumentConditions(params: ListDocumentsParams) {
-  const conditions = [eq(items.type, "document"), isNull(items.deletedAt)];
+  const conditions = [
+    eq(items.type, "document"),
+    isNull(items.deletedAt),
+  ];
   if (params.creatorId)
     conditions.push(eq(items.creatorId, params.creatorId));
   if (params.q) {
-    conditions.push(like(items.title, `%${escapeLike(params.q)}%`));
+    conditions.push(likeEscaped(items.title, `%${escapeLike(params.q)}%`));
   }
   return conditions;
 }
@@ -387,44 +363,24 @@ async function listVisibleItemIds(db: AppDatabase, userId: string): Promise<read
 }
 
 export async function listDocuments(db: AppDatabase, params: ListDocumentsParams = {}) {
-  const conditions = await buildDocumentConditions(params);
-  let where = and(...conditions);
-  if (params.tag) {
-    const ids = await db.select({ itemId: documentDetails.itemId })
-      .from(documentDetails)
-      .where(like(documentDetails.tags, `%"${escapeLike(params.tag)}"%`))
-      .all();
-    if (ids.length === 0)
-      return { data: [] as DocumentRow[], total: 0 };
-    where = and(where, inArray(items.id, ids.map(r => r.itemId)));
-  }
-
-  const page = Math.max(1, params.page ?? 1);
-  const limit = Math.min(100, Math.max(1, params.limit ?? 20));
-
-  const totalRow = await db.select({ value: count() }).from(items).where(where).get();
-  const total = totalRow?.value ?? 0;
-  const rows = await db.select().from(items).where(where).orderBy(desc(items.updatedAt), desc(items.id)).limit(limit).offset((page - 1) * limit).all();
-  const data: DocumentRow[] = [];
-  for (const r of rows)
-    data.push(await composeDocument(db, r));
-  return { data, total };
+  return await queryDocuments(db, params);
 }
 
 export async function listMyDocuments(db: AppDatabase, params: ListDocumentsParams & { userId: string }) {
   const visibleIds = await listVisibleItemIds(db, params.userId);
   const creatorClause = eq(items.creatorId, params.userId);
+  return await queryDocuments(db, params, visibleIds.length > 0
+    ? or(creatorClause, inArray(items.id, [...visibleIds]))
+    : creatorClause);
+}
 
-  const conditions = await buildDocumentConditions(params);
-  let where = and(...conditions);
-  where = visibleIds.length > 0
-    ? and(where, or(creatorClause, inArray(items.id, [...visibleIds])))
-    : and(where, creatorClause);
-
+/** One page of documents matching `params`, narrowed by `scope` when given. */
+async function queryDocuments(db: AppDatabase, params: ListDocumentsParams, scope?: SQL) {
+  let where = and(...await buildDocumentConditions(params), scope);
   if (params.tag) {
     const ids = await db.select({ itemId: documentDetails.itemId })
       .from(documentDetails)
-      .where(like(documentDetails.tags, `%"${escapeLike(params.tag)}"%`))
+      .where(likeEscaped(documentDetails.tags, `%"${escapeLike(params.tag)}"%`))
       .all();
     if (ids.length === 0)
       return { data: [] as DocumentRow[], total: 0 };
@@ -434,7 +390,9 @@ export async function listMyDocuments(db: AppDatabase, params: ListDocumentsPara
   const page = Math.max(1, params.page ?? 1);
   const limit = Math.min(100, Math.max(1, params.limit ?? 20));
 
-  const totalRow = await db.select({ value: count() }).from(items).where(where).get();
+  const totalRow = await db.select({
+    value: count(),
+  }).from(items).where(where).get();
   const total = totalRow?.value ?? 0;
   const rows = await db.select().from(items).where(where).orderBy(desc(items.updatedAt), desc(items.id)).limit(limit).offset((page - 1) * limit).all();
   const data: DocumentRow[] = [];
@@ -513,7 +471,9 @@ export async function getDocumentTreeForUser(
   return rows.map(r => ({
     id: r.short_id,
     title: r.title,
-    parentId: r.parent_id ? idToShort.get(r.parent_id) ?? null : null,
+    parentId: r.parent_id
+      ? idToShort.get(r.parent_id) ?? null
+      : null,
     updatedAt: r.updated_at,
     childCount: childCount.get(r.id) ?? 0,
   }));
@@ -542,7 +502,11 @@ export async function getDocumentPermission(
   // NOOP_POLICY_LOGGER constant keeps PolicyContext type-complete
   // without forcing every caller of this internal helper to thread one
   // through.
-  const ctx: PolicyContext = { db, logger: NOOP_POLICY_LOGGER, actor: { id: userId, type: "user" } };
+  const ctx: PolicyContext = {
+    db,
+    logger: NOOP_POLICY_LOGGER,
+    actor: { id: userId, type: "user" },
+  };
   if (await documentAccess.can(ctx, "document:update", item.id))
     return "editor";
   if (await documentAccess.can(ctx, "document:read", item.id))
@@ -585,7 +549,10 @@ export async function listDocumentSharesWithInheritance(
   if (ancestors.length === 0)
     return [];
   const ancestorIds = ancestors.map(a => a.id);
-  const meta = new Map(ancestors.map(a => [a.id, { short_id: a.short_id, title: a.title, depth: a.depth }]));
+  const meta = new Map(ancestors.map(a => [
+    a.id,
+    { short_id: a.short_id, title: a.title, depth: a.depth },
+  ]));
 
   const shares = await db.select().from(relationTuples).where(and(
     eq(relationTuples.namespace, "item"),
@@ -602,7 +569,9 @@ export async function listDocumentSharesWithInheritance(
       targetId: s.subjectId,
       permission: s.relation as "viewer" | "editor",
       createdAt: s.createdAt,
-      inheritedFrom: info.depth === 0 ? null : { id: info.short_id, title: info.title },
+      inheritedFrom: info.depth === 0
+        ? null
+        : { id: info.short_id, title: info.title },
     };
   });
   // Self-shares first, ancestors closest-up next.
@@ -687,7 +656,13 @@ export async function removeDocumentShare(ctx: PolicyContext, tupleId: string): 
   if (!row)
     return;
   await documentAccess.revoke(ctx, {
-    subject: { type: row.subjectNamespace, id: row.subjectId, ...(row.subjectRelation ? { relation: row.subjectRelation } : {}) },
+    subject: {
+      type: row.subjectNamespace,
+      id: row.subjectId,
+      ...(row.subjectRelation
+        ? { relation: row.subjectRelation }
+        : {}),
+    },
     relation: row.relation,
     objectId: row.objectId,
   });
@@ -712,7 +687,11 @@ export async function listAllTags(db: AppDatabase): Promise<readonly string[]> {
     ORDER BY je.value
   `);
   const tags = rows.map(r => r.tag);
-  tagCache = { db, loadedAt: Date.now(), tags };
+  tagCache = {
+    db,
+    loadedAt: Date.now(),
+    tags,
+  };
   return tags;
 }
 

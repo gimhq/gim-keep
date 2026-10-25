@@ -1,8 +1,7 @@
 import type { AppEnv } from "@/shared/lib/types";
 import { Hono } from "hono";
 import { z } from "zod";
-import { audit } from "@/modules/audit/audit.service";
-import { getClientIp } from "@/shared/lib/client-ip";
+import { audit, auditMeta } from "@/modules/audit/audit.service";
 import { NotFoundError } from "@/shared/lib/errors";
 import { describeRoute, errors, jsonOk, SECURITY, TAGS, validator } from "@/shared/lib/openapi";
 import { adminRequired, authRequired } from "@/shared/middleware/auth";
@@ -31,7 +30,9 @@ const listQuery = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 
-const statusBody = z.object({ status: z.enum(REPORT_STATUSES) });
+const statusBody = z.object({
+  status: z.enum(REPORT_STATUSES),
+});
 
 /** The moderators' report inbox (admins, browser session). */
 export function gimRoutes() {
@@ -45,7 +46,10 @@ export function gimRoutes() {
       summary: "List reports",
       description: "Abuse reports from gim users, newest first. Admin only.",
       security: SECURITY.session,
-      responses: { ...jsonOk(z.array(reportSchema), "Reports"), ...errors(401, 403, 422) },
+      responses: {
+        ...jsonOk(z.array(reportSchema), "Reports"),
+        ...errors(401, 403, 422),
+      },
     }),
     adminRequired,
     validator("query", listQuery),
@@ -62,7 +66,12 @@ export function gimRoutes() {
       summary: "Set a report's status",
       description: "Resolve or dismiss a report, or reopen it. Admin only.",
       security: SECURITY.session,
-      responses: { ...jsonOk(z.object({ id: z.string() }), "Updated"), ...errors(401, 403, 404, 422) },
+      responses: {
+        ...jsonOk(z.object({
+          id: z.string(),
+        }), "Updated"),
+        ...errors(401, 403, 404, 422),
+      },
     }),
     adminRequired,
     validator("json", statusBody),
@@ -80,11 +89,13 @@ export function gimRoutes() {
         resourceType: "gim_report",
         resourceId: id,
         resourceName: id,
-        ip: getClientIp(c),
-        userAgent: c.req.header("user-agent") ?? "unknown",
+        ...auditMeta(c),
         result: "success",
       });
-      return c.json({ success: true, data: { id } });
+      return c.json({
+        success: true,
+        data: { id },
+      });
     },
   );
 

@@ -1,7 +1,7 @@
 {
   "name": "@app/shared",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "ECIES utilities shared between api and web.",
   "homepage": "https://github.com/gimhq/gim-keep",
@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@app/tsconfig": "workspace:*",
+    "@typescript/native": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

@@ -74,7 +74,10 @@ export function gimRawRoutes() {
       tags: [TAGS.Gim],
       summary: "Read a storage slot",
       description: `The sealed slot and its version. ${SIGNED}`,
-      responses: { ...jsonOk(slotSchema, "Slot"), ...errors(401, 404) },
+      responses: {
+        ...jsonOk(slotSchema, "Slot"),
+        ...errors(401, 404),
+      },
     }),
     async (c) => {
       const name = slotName(c.req.param("name"));
@@ -91,13 +94,21 @@ export function gimRawRoutes() {
       tags: [TAGS.Gim],
       summary: "Write a storage slot",
       description: `Writes the next version if the slot is still at \`version\` (0 creates it); otherwise 409 \`VERSION_CONFLICT\` with the current version in \`details.version\`. ${SIGNED}`,
-      responses: { ...jsonOk(z.object({ version: z.number().int() }), "New version"), ...errors(401, 404, 409, 422) },
+      responses: {
+        ...jsonOk(z.object({
+          version: z.number().int(),
+        }), "New version"),
+        ...errors(401, 404, 409, 422),
+      },
     }),
     async (c) => {
       const name = slotName(c.req.param("name"));
       const body = signedJson(c.get("gimBody"), putSlotSchema);
       const version = await putSlot(c.get("db"), c.get("gimUserId"), name, body.version, body.data);
-      return c.json({ success: true, data: { version } });
+      return c.json({
+        success: true,
+        data: { version },
+      });
     },
   );
 
@@ -107,7 +118,12 @@ export function gimRawRoutes() {
       tags: [TAGS.Gim],
       summary: "Report a user",
       description: `Files an abuse report with the messages the reporter chose, in plaintext. A replayed request returns the same report. ${SIGNED}`,
-      responses: { ...jsonCreated(z.object({ id: z.string() }), "Report"), ...errors(401, 422, 429) },
+      responses: {
+        ...jsonCreated(z.object({
+          id: z.string(),
+        }), "Report"),
+        ...errors(401, 422, 429),
+      },
     }),
     async (c) => {
       const body = signedJson(c.get("gimBody"), reportSchema);
@@ -116,7 +132,10 @@ export function gimRawRoutes() {
         reporterId: c.get("gimUserId"),
         requestDigest: c.get("gimRequestDigest"),
       });
-      return c.json({ success: true, data: { id } }, 201);
+      return c.json({
+        success: true,
+        data: { id },
+      }, 201);
     },
   );
 
@@ -126,11 +145,19 @@ export function gimRawRoutes() {
       tags: [TAGS.Gim],
       summary: "Delete the account's data",
       description: `Deletes every storage slot of the signing user (account deletion). Reports stay. ${SIGNED}`,
-      responses: { ...jsonOk(z.object({ deletedSlots: z.number().int() }), "Deleted"), ...errors(401) },
+      responses: {
+        ...jsonOk(z.object({
+          deletedSlots: z.number().int(),
+        }), "Deleted"),
+        ...errors(401),
+      },
     }),
     async (c) => {
       const deletedSlots = await deleteUserData(c.get("db"), c.get("gimUserId"));
-      return c.json({ success: true, data: { deletedSlots } });
+      return c.json({
+        success: true,
+        data: { deletedSlots },
+      });
     },
   );
 

@@ -4,12 +4,12 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { and, eq } from "drizzle-orm";
-import { customAlphabet } from "nanoid";
 import { createDb } from "@/db";
 import { users } from "@/modules/account/users/schema";
 import { items } from "@/modules/item/schema";
 import { loadNamespaces } from "@/modules/policy/namespace-config";
 import { relationTuples } from "@/modules/policy/schema";
+import { nanoid } from "@/shared/lib/id";
 import {
   createIssue,
   getIssueByShortId,
@@ -18,8 +18,6 @@ import {
   softDeleteIssue,
   updateIssue,
 } from "./issue.service";
-
-const nanoid = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);
 
 let db: AppDatabase;
 let dbPath: string;
@@ -189,6 +187,15 @@ describe("listIssues (admin path)", () => {
     const r = await listIssues(db, { q: "bug" });
     expect(r.data).toHaveLength(1);
     expect(r.data[0]!.title).toBe("Fix the bug");
+  });
+
+  test("matches % and _ in the search literally", async () => {
+    const userId = await seedUser("Alice");
+    await createIssue(db, { title: "Ship 50% of fixes", creatorId: userId });
+    await createIssue(db, { title: "Ship 500 fixes", creatorId: userId });
+    await createIssue(db, { title: "Rename user_id", creatorId: userId });
+    expect((await listIssues(db, { q: "50%" })).data.map(i => i.title)).toEqual(["Ship 50% of fixes"]);
+    expect((await listIssues(db, { q: "_id" })).data.map(i => i.title)).toEqual(["Rename user_id"]);
   });
 
   test("filters by assignee id via the policy tuple set", async () => {

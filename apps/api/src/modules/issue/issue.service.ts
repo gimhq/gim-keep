@@ -1,20 +1,16 @@
 import type { AppDatabase } from "@/db";
-import { and, count, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { users } from "@/modules/account/users/schema";
 import { issueDetails } from "@/modules/issue/schema";
+import { insertItem } from "@/modules/item/item.service";
 import { items } from "@/modules/item/schema";
 import { DIRECT_SUBJECT, relationTuples } from "@/modules/policy/schema";
 import { check, listUserResources } from "@/modules/policy/zanzibar.engine";
-import { nanoid, ulid } from "@/shared/lib/id";
+import { nanoid, ulid, ulidTimestamp } from "@/shared/lib/id";
+import { escapeLike, likeEscaped } from "@/shared/lib/like";
 
 export type IssueStatus = "open" | "in_progress" | "done" | "cancelled";
 export type IssuePriority = "low" | "medium" | "high" | "urgent";
-
-const LIKE_SPECIAL_RE = /[%_]/g;
-
-function escapeLike(v: string): string {
-  return v.replace(LIKE_SPECIAL_RE, "\\$&");
-}
 
 /** Composite view returned by routes and tests. */
 export interface IssueRow {
@@ -29,20 +25,6 @@ export interface IssueRow {
   readonly createdAt: string; // decoded from items.id (ULID timestamp prefix)
   readonly updatedAt: string;
   readonly version: number;
-}
-
-// Crockford base32 → ms decode for the ULID timestamp prefix that lives on
-// `items.id`. The first 10 chars carry the upload millisecond.
-const ULID_ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz";
-function ulidTimestamp(id: string): string {
-  let ms = 0;
-  for (let i = 0; i < 10; i++) {
-    const code = ULID_ALPHABET.indexOf(id[i] ?? "");
-    if (code < 0)
-      return new Date().toISOString();
-    ms = ms * 32 + code;
-  }
-  return new Date(ms).toISOString();
 }
 
 async function getAssigneeId(db: AppDatabase, itemId: string): Promise<string | null> {
@@ -98,36 +80,21 @@ export async function createIssue(db: AppDatabase, input: CreateIssueInput): Pro
   const now = new Date().toISOString();
 
   await db.transaction(async (tx) => {
-    await tx.insert(items).values({
+    await insertItem(tx, {
       id,
       shortId,
       type: "issue",
       title: input.title,
       status: input.status ?? "open",
       creatorId: input.creatorId,
-      version: 1,
-      deletedAt: null,
-      updatedAt: now,
-    }).run();
+      now,
+    });
 
     await tx.insert(issueDetails).values({
       itemId: id,
       description: input.description ?? null,
       priority: input.priority ?? "medium",
       dueDate: input.dueDate ?? null,
-    }).run();
-
-    // owner tuple
-    await tx.insert(relationTuples).values({
-      id: nanoid(),
-      namespace: "item",
-      objectId: id,
-      relation: "owner",
-      subjectNamespace: "user",
-      subjectId: input.creatorId,
-      subjectRelation: DIRECT_SUBJECT,
-      createdBy: input.creatorId,
-      createdAt: now,
     }).run();
 
     if (input.assigneeId) {
@@ -257,13 +224,16 @@ export interface ListIssueParams {
 }
 
 async function buildIssueConditions(params: ListIssueParams) {
-  const conditions = [eq(items.type, "issue"), isNull(items.deletedAt)];
+  const conditions = [
+    eq(items.type, "issue"),
+    isNull(items.deletedAt),
+  ];
   if (params.status && params.status !== "__all__")
     conditions.push(eq(items.status, params.status));
   if (params.creatorId)
     conditions.push(eq(items.creatorId, params.creatorId));
   if (params.q)
-    conditions.push(like(items.title, `%${escapeLike(params.q)}%`));
+    conditions.push(likeEscaped(items.title, `%${escapeLike(params.q)}%`));
   return conditions;
 }
 
@@ -304,7 +274,9 @@ async function paginateIssues(
     where = and(where, inArray(items.id, ids.map(r => r.objectId)));
   }
 
-  const totalRow = await db.select({ value: count() }).from(items).where(where).get();
+  const totalRow = await db.select({
+    value: count(),
+  }).from(items).where(where).get();
   const total = totalRow?.value ?? 0;
 
   const rows = await db.select().from(items).where(where).orderBy(desc(items.id)).limit(limit).offset((page - 1) * limit).all();
@@ -349,7 +321,9 @@ export async function listMyIssues(db: AppDatabase, params: ListIssueParams & { 
     working = and(working, inArray(items.id, ids.map(r => r.itemId)));
   }
 
-  const totalRow = await db.select({ value: count() }).from(items).where(working).get();
+  const totalRow = await db.select({
+    value: count(),
+  }).from(items).where(working).get();
   const total = totalRow?.value ?? 0;
   const rows = await db.select().from(items).where(working).orderBy(desc(items.id)).limit(limit).offset((page - 1) * limit).all();
   const data: IssueRow[] = [];
@@ -394,7 +368,12 @@ export async function resolveAccess(
   const isAssignee = !!assignedTuple;
   const view = await check(db, "item", item.id, "viewer", "user", userId);
   const edit = await check(db, "item", item.id, "editor", "user", userId);
-  return { isCreator, isAssignee, canRead: view.allowed, canEdit: edit.allowed };
+  return {
+    isCreator,
+    isAssignee,
+    canRead: view.allowed,
+    canEdit: edit.allowed,
+  };
 }
 
 export async function getUserById(db: AppDatabase, id: string) {

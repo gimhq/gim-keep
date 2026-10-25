@@ -33,7 +33,7 @@ describe("TOTP enrolment + verify (live)", () => {
     expect(created.data.id.length).toBe(8);
     expect(created.data.secret.length).toBeGreaterThan(0);
     expect(created.data.uri).toMatch(/^otpauth:\/\//);
-    expect(created.data.qrCode).toMatch(/^data:image\/png;base64,/);
+    expect(created.data.qrCode).toMatch(/^data:image\/svg\+xml;base64,/);
 
     const deviceId = created.data.id;
     const secret = created.data.secret;
@@ -47,7 +47,9 @@ describe("TOTP enrolment + verify (live)", () => {
     // 3. Confirm — supplies a freshly-generated TOTP code.
     await user.raw(`/api/account/me/totp/${deviceId}/confirm`, {
       method: "POST",
-      body: { code: code(secret) },
+      body: {
+        code: code(secret),
+      },
     });
 
     // 4. Listed AND verified.
@@ -61,7 +63,9 @@ describe("TOTP enrolment + verify (live)", () => {
     //    re-use of a timestep that was already redeemed (RFC 6238 §5.2).
     const stepUp = await user.json<{ data: { token: string } }>("/api/account/me/totp/verify", {
       method: "POST",
-      body: { code: code(secret, 30_000) },
+      body: {
+        code: code(secret, 30_000),
+      },
     });
     expect(stepUp.data.token.length).toBeGreaterThan(0);
 

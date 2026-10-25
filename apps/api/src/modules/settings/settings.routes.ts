@@ -1,9 +1,9 @@
 import type { AppEnv } from "@/shared/lib/types";
 import { Hono } from "hono";
 import { z } from "zod";
-import { audit } from "@/modules/audit/audit.service";
-import { getClientIp } from "@/shared/lib/client-ip";
+import { audit, auditMeta } from "@/modules/audit/audit.service";
 import { AppError, NotFoundError } from "@/shared/lib/errors";
+import { escapeLike } from "@/shared/lib/like";
 import { describeRoute, errors, jsonOk, SECURITY, TAGS, validator } from "@/shared/lib/openapi";
 import { adminRequired, authRequired } from "@/shared/middleware/auth";
 import {
@@ -18,7 +18,6 @@ import {
 } from "./settings.service";
 
 const SETTING_KEY_RE = /^[a-z0-9][a-z0-9._-]{0,127}$/;
-const LIKE_SPECIAL_RE = /[%_]/g;
 
 const putSettingSchema = z.object({
   value: z.string().min(1),
@@ -59,7 +58,9 @@ export function settingsRoutes() {
     async (c) => {
       const db = c.get("db");
       const rawPrefix = c.req.query("prefix");
-      const prefix = rawPrefix ? rawPrefix.replace(LIKE_SPECIAL_RE, "\\$&") : undefined;
+      const prefix = rawPrefix
+        ? escapeLike(rawPrefix)
+        : undefined;
       const data = (await getSettings(db, prefix)).map(maskSensitiveValue);
       return c.json({ success: true, data });
     },
@@ -89,7 +90,13 @@ export function settingsRoutes() {
       if (value === null) {
         throw new NotFoundError("Setting", key);
       }
-      return c.json({ success: true, data: { key, value: maskValue(key, value) } });
+      return c.json({
+        success: true,
+        data: {
+          key,
+          value: maskValue(key, value),
+        },
+      });
     },
   );
 
@@ -137,9 +144,11 @@ export function settingsRoutes() {
         resourceType: "setting",
         resourceId: key,
         resourceName: key,
-        detail: { previousValue, newValue: maskValue(key, body.value) },
-        ip: getClientIp(c),
-        userAgent: c.req.header("user-agent") ?? "unknown",
+        detail: {
+          previousValue,
+          newValue: maskValue(key, body.value),
+        },
+        ...auditMeta(c),
         result: "success",
       });
 
@@ -179,8 +188,7 @@ export function settingsRoutes() {
         resourceType: "setting",
         resourceId: key,
         resourceName: key,
-        ip: getClientIp(c),
-        userAgent: c.req.header("user-agent") ?? "unknown",
+        ...auditMeta(c),
         result: "success",
       });
 

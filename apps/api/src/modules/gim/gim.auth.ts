@@ -105,7 +105,9 @@ export async function verifyRequest(request: SignedRequest, nowMs: number): Prom
   catch {
     return null;
   }
-  return verified ? userIdOf(publicKey) : null;
+  return verified
+    ? userIdOf(publicKey)
+    : null;
 }
 
 /**
