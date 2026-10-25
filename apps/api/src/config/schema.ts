@@ -29,9 +29,9 @@ export const configSchema = z.object({
   DB_ENCRYPTION: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
   // Application slug — lowercase letters, digits, dashes. Used as the
   // backup filename prefix, localStorage namespace, etc.
-  APP_NAME: z.string().regex(RE_APP_NAME, "APP_NAME must match /^[a-z][a-z0-9-]*$/").default("gim-meta"),
+  APP_NAME: z.string().regex(RE_APP_NAME, "APP_NAME must match /^[a-z][a-z0-9-]*$/").default("gim-keep"),
   // Human-readable display name used in HTML title, TOTP issuer, etc.
-  APP_DISPLAY_NAME: z.string().min(1).default("gim meta server"),
+  APP_DISPLAY_NAME: z.string().min(1).default("gim keep server"),
   // URL prefix the app is mounted under. Empty (default) means the app is
   // served at root: SPA at "/" and API at "/api". When set, the value is
   // normalised so "app", "/app", and "/app/" all resolve to "/app".

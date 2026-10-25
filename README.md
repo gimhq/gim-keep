@@ -1,6 +1,6 @@
-# gim meta server
+# gim keep server
 
-The gim meta server keeps what gim clients must not lose with their devices
+The gim keep server keeps what gim clients must not lose with their devices
 and gim hubs must not learn: per-user storage slots sealed by the client
 (block list, chat settings, privacy switches), and abuse reports with a
 moderators' inbox. Clients authenticate each request with the user's root
@@ -24,7 +24,7 @@ cp .env.example .env       # uncomment the "Bundled dex IdP" block
 bun run dev:all            # starts dex + web + api in one process group
 ```
 
-Open the URL printed by `bun run dev:all` (e.g. `http://gim-meta.localhost:3355`). Sign in with `admin@example.com` / `admin` — the bundled dex's static user. That login is an admin because it matches `DEFAULT_ADMIN`.
+Open the URL printed by `bun run dev:all` (e.g. `http://gim-keep.localhost:3355`). Sign in with `admin@example.com` / `admin` — the bundled dex's static user. That login is an admin because it matches `DEFAULT_ADMIN`.
 
 Already have an OAuth/OIDC provider? Point `OAUTH_ISSUER` at it in `.env` and use `bun run dev` instead — `dev:all` detects an external issuer and bows out so it doesn't fight your IdP.
 

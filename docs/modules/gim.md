@@ -1,6 +1,6 @@
 # gim Module
 
-The gim meta server: encrypted per-user storage slots and abuse
+The gim keep server: encrypted per-user storage slots and abuse
 reports for gim clients, and the moderators' report inbox. gim hubs stay
 stateless about users' preferences; what must outlive a user's devices
 (block list, chat settings, privacy switches) lives here as ciphertext the

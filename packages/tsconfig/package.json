@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "description": "Shared typescript configuration for the workspace.",
-  "homepage": "https://github.com/gimhq/gim-meta",
+  "homepage": "https://github.com/gimhq/gim-keep",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gimhq/gim-meta.git",
+    "url": "https://github.com/gimhq/gim-keep.git",
     "directory": "packages/tsconfig"
   }
 }

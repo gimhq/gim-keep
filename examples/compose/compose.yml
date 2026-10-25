@@ -30,14 +30,14 @@ services:
       # this compose file (examples/compose/compose.yml -> ../..).
       context: ../..
       dockerfile: Dockerfile
-    image: ${APP_NAME:-gim-meta}:local
+    image: ${APP_NAME:-gim-keep}:local
     restart: unless-stopped
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 3000
-      APP_NAME: ${APP_NAME:-gim-meta}
-      APP_DISPLAY_NAME: ${APP_DISPLAY_NAME:-gim meta server}
+      APP_NAME: ${APP_NAME:-gim-keep}
+      APP_DISPLAY_NAME: ${APP_DISPLAY_NAME:-gim keep server}
       BASE_PATH: ${BASE_PATH:-}
       # Data auto-anchors at ${LODE_DIR}/data = /srv/lode/data (the volume),
       # not the swappable version directory. Set DATA_DIR to override.

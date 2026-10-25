@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "private": true,
   "description": "ECIES utilities shared between api and web.",
-  "homepage": "https://github.com/gimhq/gim-meta",
+  "homepage": "https://github.com/gimhq/gim-keep",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gimhq/gim-meta.git",
+    "url": "https://github.com/gimhq/gim-keep.git",
     "directory": "packages/shared"
   },
   "exports": {

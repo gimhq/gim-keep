@@ -1,4 +1,4 @@
-name = "gim-meta"
+name = "gim-keep"
 main = "src/workers/entry.ts"
 compatibility_date = "2026-09-01"
 # node:crypto / node:buffer / node:path / node:util are used across the shared
@@ -28,7 +28,7 @@ new_sqlite_classes = ["AppDurableObject"]
 # Blob storage for the file module (FILE_STORAGE_DRIVER=r2).
 [[r2_buckets]]
 binding = "FILES"
-bucket_name = "gim-meta-files"
+bucket_name = "gim-keep-files"
 
 # The SPA is served by the asset pipeline; only the API prefixes reach the
 # Worker. Any other path is answered from the assets, with the SPA's index.html
