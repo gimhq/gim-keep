@@ -44,6 +44,8 @@
   },
   "nav": {
     "overview": "Overview",
+    "reports": "Reports",
+    "storage": "Storage",
     "users": "Users",
     "policies": "Policies",
     "myIssues": "My Issues",

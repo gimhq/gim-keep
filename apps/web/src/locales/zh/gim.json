@@ -1,0 +1,62 @@
+{
+  "reports": {
+    "title": "举报",
+    "description": "gim 用户提交的举报。消息内容是举报人自己选择附上的。",
+    "status": {
+      "open": "待处理",
+      "resolved": "已处理",
+      "dismissed": "已驳回"
+    },
+    "reason": {
+      "spam": "垃圾信息",
+      "harassment": "骚扰",
+      "inappropriate": "不当内容",
+      "scam": "诈骗",
+      "other": "其他"
+    },
+    "col": {
+      "time": "举报时间",
+      "reason": "原因",
+      "reported": "被举报用户",
+      "reporter": "举报人",
+      "messages": "消息",
+      "actions": "操作"
+    },
+    "empty": "没有举报。",
+    "view": "查看举报",
+    "detailTitle": "举报详情",
+    "closedAt": "处理时间",
+    "note": "备注",
+    "messagesTitle": "被举报消息（{{count}} 条）",
+    "noMessages": "举报人没有附上消息。",
+    "resolve": "标记为已处理",
+    "dismiss": "驳回",
+    "reopen": "重新打开"
+  },
+  "storage": {
+    "title": "存储",
+    "description": "为 gim 用户保存的加密数据槽，例如隐私设置的备份。",
+    "totals": {
+      "users": "用户",
+      "slots": "数据槽",
+      "bytes": "占用空间"
+    },
+    "search": "按用户 ID 前缀筛选…",
+    "col": {
+      "user": "用户 ID",
+      "slots": "数据槽",
+      "size": "大小",
+      "updated": "最后更新",
+      "actions": "操作",
+      "slot": "数据槽",
+      "version": "版本"
+    },
+    "empty": "暂无数据。",
+    "view": "查看数据槽",
+    "delete": "删除数据",
+    "slotsTitle": "数据槽",
+    "sealedNote": "数据槽内容由用户的应用加密，这里无法读取，只显示名称、大小和时间。",
+    "deleteTitle": "删除该用户的数据？",
+    "deleteDescription": "将删除 {{userId}} 的全部数据槽，效果和用户自己注销账号相同，举报记录会保留。之后数据有变化时，应用会重新备份。"
+  }
+}

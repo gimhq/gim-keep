@@ -14,10 +14,11 @@ apps/api/src/modules/gim/
   gim.auth.ts              # root-signed request verification
   gim.service.ts
   gim.raw.routes.ts        # client routes on the raw API
-  gim.routes.ts            # moderator routes (admin session)
+  gim.routes.ts            # admin routes: report inbox, storage overview (admin session)
+  gim.cleanup.ts           # `gim-cleanup` cron action (retention)
   gim.backup.ts            # backup contribution
   fixtures/request.json    # gim-core signing vectors
-  index.ts                 # registers backup contribution
+  index.ts                 # registers backup contribution and the cron action
 ```
 
 ## Authentication
@@ -58,18 +59,35 @@ limit) and require a root-signed request:
 | POST | `/api/raw/gim/v1/reports` | `{ reportedUserId, reason, note?, messages: [{ messageId, senderUserId, sentAtMs, text }] }` (at most 50 messages); 201 `{ id }`. 50 reports per reporter per day. |
 | DELETE | `/api/raw/gim/v1/me` | Account deletion: removes the signer's slots. Reports stay. |
 
-Moderator routes are mounted under `protectedRoutes`, admin only:
+Admin routes are mounted under `protectedRoutes`, admin only. The admin
+UI uses them on the **Reports** and **Storage** pages:
 
 | Method | Path | Description |
 |---|---|---|
 | GET | `/api/gim/reports?status=&limit=` | Reports with that status (default `open`), newest first. |
 | PATCH | `/api/gim/reports/:id` | `{ status }`: resolve, dismiss or reopen. |
+| GET | `/api/gim/storage?q=&page=&limit=` | Users with stored slots: slot count, stored bytes, last update, most recent first; `q` is a user id prefix. `meta` carries `total` and the overall `totals` (users, slots, bytes). |
+| GET | `/api/gim/storage/:userId` | That user's slots: name, version, bytes, update time. |
+| DELETE | `/api/gim/storage/:userId` | Deletes every slot of the user (as `DELETE /me` does); reports stay. 404 when nothing is stored. |
+
+Slot contents never leave the module through these routes: they are
+sealed by the clients and the server cannot read them.
+
+## Retention
+
+The `gim-cleanup` cron action deletes slots whose last update is older
+than `slotDays` and resolved or dismissed reports closed more than
+`reportDays` days ago. Open reports are never deleted. At least one
+period must be set; an unset period skips that half. It ships without a
+default schedule: nothing is deleted until an admin creates a job for it
+on the Cron page (scheduled runs need `CRON_ENABLED=true`, see
+[`cron.md`](cron.md); a manual trigger works either way).
 
 ## Audit
 
-`gim.report.resolved`, `gim.report.dismissed`, `gim.report.open`.
+`gim.report.resolved`, `gim.report.dismissed`, `gim.report.open`,
+`gim.storage.deleted` (detail: deleted slot count).
 
 ## Out of scope
 
-- A moderation web page: the inbox is API-only for now.
 - Acting on a report (suspending a user is done on the user's hub).

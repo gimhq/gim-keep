@@ -24,7 +24,9 @@ import { Route as AppOverviewRouteRouteImport } from './routes/_app/overview/rou
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppAdminCronRouteImport } from './routes/_app/admin/cron'
 import { Route as AppAdminPoliciesRouteImport } from './routes/_app/admin/policies'
+import { Route as AppAdminReportsRouteImport } from './routes/_app/admin/reports'
 import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
+import { Route as AppAdminStorageRouteImport } from './routes/_app/admin/storage'
 import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
 import { Route as AppIssuesIndexRouteImport } from './routes/_app/issues/index'
 import { Route as AppIssuesIssueIdRouteImport } from './routes/_app/issues/$issueId'
@@ -115,12 +117,26 @@ const AppAdminPoliciesRoute = AppAdminPoliciesRouteImport.update({
 } as any).lazy(() =>
   import('./routes/_app/admin/policies.lazy').then((d) => d.Route),
 )
+const AppAdminReportsRoute = AppAdminReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppAdminRouteRoute,
+} as any).lazy(() =>
+  import('./routes/_app/admin/reports.lazy').then((d) => d.Route),
+)
 const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => AppAdminRouteRoute,
 } as any).lazy(() =>
   import('./routes/_app/admin/settings.lazy').then((d) => d.Route),
+)
+const AppAdminStorageRoute = AppAdminStorageRouteImport.update({
+  id: '/storage',
+  path: '/storage',
+  getParentRoute: () => AppAdminRouteRoute,
+} as any).lazy(() =>
+  import('./routes/_app/admin/storage.lazy').then((d) => d.Route),
 )
 const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
   id: '/users',
@@ -171,7 +187,9 @@ export interface FileRoutesByFullPath {
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/cron': typeof AppAdminCronRoute
   '/admin/policies': typeof AppAdminPoliciesRoute
+  '/admin/reports': typeof AppAdminReportsRoute
   '/admin/settings': typeof AppAdminSettingsRoute
+  '/admin/storage': typeof AppAdminStorageRoute
   '/admin/users': typeof AppAdminUsersRouteWithChildren
   '/issues/$issueId': typeof AppIssuesIssueIdRoute
   '/issues/': typeof AppIssuesIndexRoute
@@ -192,7 +210,9 @@ export interface FileRoutesByTo {
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/cron': typeof AppAdminCronRoute
   '/admin/policies': typeof AppAdminPoliciesRoute
+  '/admin/reports': typeof AppAdminReportsRoute
   '/admin/settings': typeof AppAdminSettingsRoute
+  '/admin/storage': typeof AppAdminStorageRoute
   '/issues/$issueId': typeof AppIssuesIssueIdRoute
   '/issues': typeof AppIssuesIndexRoute
   '/admin/users/groups': typeof AppAdminUsersGroupsRoute
@@ -215,7 +235,9 @@ export interface FileRoutesById {
   '/_app/admin/audit': typeof AppAdminAuditRoute
   '/_app/admin/cron': typeof AppAdminCronRoute
   '/_app/admin/policies': typeof AppAdminPoliciesRoute
+  '/_app/admin/reports': typeof AppAdminReportsRoute
   '/_app/admin/settings': typeof AppAdminSettingsRoute
+  '/_app/admin/storage': typeof AppAdminStorageRoute
   '/_app/admin/users': typeof AppAdminUsersRouteWithChildren
   '/_app/issues/$issueId': typeof AppIssuesIssueIdRoute
   '/_app/issues/': typeof AppIssuesIndexRoute
@@ -239,7 +261,9 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/cron'
     | '/admin/policies'
+    | '/admin/reports'
     | '/admin/settings'
+    | '/admin/storage'
     | '/admin/users'
     | '/issues/$issueId'
     | '/issues/'
@@ -260,7 +284,9 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/cron'
     | '/admin/policies'
+    | '/admin/reports'
     | '/admin/settings'
+    | '/admin/storage'
     | '/issues/$issueId'
     | '/issues'
     | '/admin/users/groups'
@@ -282,7 +308,9 @@ export interface FileRouteTypes {
     | '/_app/admin/audit'
     | '/_app/admin/cron'
     | '/_app/admin/policies'
+    | '/_app/admin/reports'
     | '/_app/admin/settings'
+    | '/_app/admin/storage'
     | '/_app/admin/users'
     | '/_app/issues/$issueId'
     | '/_app/issues/'
@@ -408,11 +436,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminPoliciesRouteImport
       parentRoute: typeof AppAdminRouteRoute
     }
+    '/_app/admin/reports': {
+      id: '/_app/admin/reports'
+      path: '/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AppAdminReportsRouteImport
+      parentRoute: typeof AppAdminRouteRoute
+    }
     '/_app/admin/settings': {
       id: '/_app/admin/settings'
       path: '/settings'
       fullPath: '/admin/settings'
       preLoaderRoute: typeof AppAdminSettingsRouteImport
+      parentRoute: typeof AppAdminRouteRoute
+    }
+    '/_app/admin/storage': {
+      id: '/_app/admin/storage'
+      path: '/storage'
+      fullPath: '/admin/storage'
+      preLoaderRoute: typeof AppAdminStorageRouteImport
       parentRoute: typeof AppAdminRouteRoute
     }
     '/_app/admin/users': {
@@ -471,7 +513,9 @@ interface AppAdminRouteRouteChildren {
   AppAdminAuditRoute: typeof AppAdminAuditRoute
   AppAdminCronRoute: typeof AppAdminCronRoute
   AppAdminPoliciesRoute: typeof AppAdminPoliciesRoute
+  AppAdminReportsRoute: typeof AppAdminReportsRoute
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
+  AppAdminStorageRoute: typeof AppAdminStorageRoute
   AppAdminUsersRoute: typeof AppAdminUsersRouteWithChildren
 }
 
@@ -479,7 +523,9 @@ const AppAdminRouteRouteChildren: AppAdminRouteRouteChildren = {
   AppAdminAuditRoute: AppAdminAuditRoute,
   AppAdminCronRoute: AppAdminCronRoute,
   AppAdminPoliciesRoute: AppAdminPoliciesRoute,
+  AppAdminReportsRoute: AppAdminReportsRoute,
   AppAdminSettingsRoute: AppAdminSettingsRoute,
+  AppAdminStorageRoute: AppAdminStorageRoute,
   AppAdminUsersRoute: AppAdminUsersRouteWithChildren,
 }
 

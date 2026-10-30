@@ -1,0 +1,62 @@
+{
+  "reports": {
+    "title": "Reports",
+    "description": "Abuse reports sent by gim users. The messages are shown as the reporter chose them.",
+    "status": {
+      "open": "Open",
+      "resolved": "Resolved",
+      "dismissed": "Dismissed"
+    },
+    "reason": {
+      "spam": "Spam",
+      "harassment": "Harassment",
+      "inappropriate": "Inappropriate",
+      "scam": "Scam",
+      "other": "Other"
+    },
+    "col": {
+      "time": "Reported",
+      "reason": "Reason",
+      "reported": "Reported user",
+      "reporter": "Reporter",
+      "messages": "Messages",
+      "actions": "Actions"
+    },
+    "empty": "No reports.",
+    "view": "View report",
+    "detailTitle": "Report",
+    "closedAt": "Closed",
+    "note": "Note",
+    "messagesTitle": "Reported messages ({{count}})",
+    "noMessages": "The reporter attached no messages.",
+    "resolve": "Resolve",
+    "dismiss": "Dismiss",
+    "reopen": "Reopen"
+  },
+  "storage": {
+    "title": "Storage",
+    "description": "Encrypted slots stored for gim users, such as their privacy settings backup.",
+    "totals": {
+      "users": "Users",
+      "slots": "Slots",
+      "bytes": "Stored"
+    },
+    "search": "Filter by user ID prefix…",
+    "col": {
+      "user": "User ID",
+      "slots": "Slots",
+      "size": "Size",
+      "updated": "Last update",
+      "actions": "Actions",
+      "slot": "Slot",
+      "version": "Version"
+    },
+    "empty": "Nothing stored.",
+    "view": "View slots",
+    "delete": "Delete data",
+    "slotsTitle": "Slots",
+    "sealedNote": "Slot contents are encrypted by the users' apps and cannot be read here. Only names, sizes and times are shown.",
+    "deleteTitle": "Delete this user's data?",
+    "deleteDescription": "Every slot of {{userId}} is deleted, as when the user deletes their account. Their reports are kept. The app backs the data up again the next time it changes."
+  }
+}
