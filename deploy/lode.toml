@@ -1,45 +1,69 @@
-# lode operator config — how the supervisor fetches and runs this app.
+# lode.toml for gim-keep (the gim keep server, https://keep.g.im), for the
+# lode supervisor (github.com/bkhq/lode, docs/lode.example.toml).
 #
-# Mounted at /srv/lode/lode.toml (see docker-compose.yml). This is the
-# operator's file; the app never writes it. App runtime env (APP_URL, OAUTH_*,
-# DB_PATH, …) is supplied via the container env (.env.docker), which lode
-# passes through to the launched app — keep app config there, not here.
+# Mounted read-only at /srv/lode/lode.toml by docker-compose.yml. This is the
+# operator's file; the app never writes it. Secrets and per-deploy values
+# (OIDC or the admin login, service tokens) go in the container env
+# (.env.docker), which lode passes through to the app and which wins over
+# [env] below.
 #
 # Precedence: CLI > env (LODE_*) > lode.toml > defaults.
 
 [global]
-app       = "app"        # must match the release manifest "name"
-dir       = "/srv/lode"  # base dir: lode.toml + versions/ + state.json (override via LODE_DIR)
+app       = "gim-keep"   # must match the release manifest "name" (APP_NAME in release.yml)
+dir       = "/srv/lode"  # lode.toml, versions/, state.json, runtime/; app data under data/
 log_level = "info"
 
 [update]
-github         = "zzci/bun-tpl"          # repo that publishes the release assets
-asset          = "app-linux-x64.tar.gz"  # the asset filename for this host
-channel         = "stable"               # github: stable = /releases/latest
-policy          = "check"                # off | check | auto
-check_interval  = 300                    # seconds between update checks
-keep_versions   = 3                      # retained versions for rollback
+github         = "gimhq/gim-keep"
+asset          = "gim-keep-linux-x64.tar.gz"  # built by .github/workflows/release.yml
+channel        = "stable"                     # the latest published (non-prerelease) release
+# check: lode only records a newer release in state.json ("available"); the
+# operator upgrades with `lode-cli update`. Flip to "auto" to install new
+# releases unattended.
+policy         = "check"
+check_interval = 300   # seconds between update checks
+keep_versions  = 3     # installed versions kept for rollback
 
 [trust]
-# off | auto | enforce. "auto" verifies a signature when present and otherwise
-# allows the asset; switch to "enforce" once you publish signed assets
-# (run `lode-cli keygen`, set LODE_SIGNING_KEY in CI, and list trusted_keys).
+# "auto" verifies a signature only when trusted_keys is set, otherwise it
+# installs the asset UNVERIFIED (checksum only). To sign releases: run
+# `lode-cli keygen`, store the seed as the LODE_SIGNING_KEY secret of
+# gimhq/gim-keep, paste the printed key below and switch to "enforce".
 require_signature = "auto"
-# Strongly recommended for any deployment that polls updates: without a key
-# here, "auto" installs assets UNVERIFIED (checksum only). The release
-# workflow signs automatically once the LODE_SIGNING_KEY secret is set —
-# paste the trusted_keys entry `lode-cli keygen` printed:
 # trusted_keys = ["<key_id>:<base64-pubkey>"]
 
 [command]
-# Matches the manifest asset run/exec produced by scripts/package.ts. cwd is
-# the version directory, where index.js + dist/ + drizzle/ + node_modules/ live.
+# cwd = the installed version dir (index.js, dist/, drizzle/, node_modules/).
 run  = "bun index.js"
-exec = "bun run"
+exec = "bun run"   # `lode <script>` -> `bun run <script>`, e.g. `lode healthcheck`
 
 [runtime]
-# Fetch the bun runtime if it is not already on PATH (cached, version-pinned).
-# Note: a runtime download is not signature-verified.
+# Bun 1.4.4. The image (oven/bun:1.4.4-debian) already has it on PATH, which
+# wins; this download is the fallback for hosts without bun and is checked
+# against sha256 (SHASUMS256.txt of the bun-v1.4.4 release).
 runtime  = "bun"
 download = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.4/bun-linux-x64.zip"
+sha256   = "bf8ccbfb2b0b80159e0f9a6d15c55317add8077534dbc6130a3edb52fccb395c"
 version  = "1.4.4"
+
+[env]
+# Defaults only: any variable already in the container env wins.
+NODE_ENV         = "production"
+HOST             = "0.0.0.0"
+PORT             = "3000"
+LOG_TO_STDOUT    = "true"
+APP_NAME         = "gim-keep"
+APP_DISPLAY_NAME = "gim keep server"
+APP_URL          = "https://keep.g.im"
+CORS_ORIGIN      = "https://keep.g.im"
+# gim clients call /api/raw/gim/v1/* directly; every request reaches the app
+# through the TLS proxy, so per-IP limits use the forwarded client address.
+TRUST_PROXY      = "true"
+
+[supervise]
+readiness     = "state"        # the app reports serving in state.json once its DB is open
+ready_timeout = 60             # seconds to wait for readiness (migrations included) before a rollback
+health_grace  = 15             # a new version exiting within this window is rolled back
+stop_timeout  = 30             # SIGTERM grace before SIGKILL; keep the container's stop grace above it
+restart       = "on-failure"

@@ -25,7 +25,7 @@ concurrency:
 env:
   BUN_VERSION: "1.4.4"
   NODE_VERSION: "24.22.1"
-  APP_NAME: app
+  APP_NAME: gim-keep
   ASSET_SUFFIX: linux-x64
   RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
 

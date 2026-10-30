@@ -11,16 +11,18 @@
 #       docker network create traefik
 #   - A `.env.docker` next to this file (copy `.env.docker.example`).
 #
-# `${APP_NAME}` is substituted from a `.env` in this directory (default `app`).
+# `${APP_NAME}` is substituted from a `.env` in this directory (default `gim-keep`).
 # Routing is left to your Traefik configuration; add labels here if preferred.
 services:
   app:
-    container_name: ${APP_NAME:-app}
-    hostname: ${APP_NAME:-app}
-    image: ${APP_NAME:-app}:latest
+    container_name: ${APP_NAME:-gim-keep}
+    hostname: ${APP_NAME:-gim-keep}
+    image: ${APP_NAME:-gim-keep}:latest
     build:
       context: .
     restart: unless-stopped
+    # Above [supervise].stop_timeout in deploy/lode.toml (30 s).
+    stop_grace_period: 40s
     # Defence in depth: the Dockerfile already runs as the unprivileged
     # `bun` user; drop every capability and forbid privilege escalation so
     # a compromised process cannot regain any.
