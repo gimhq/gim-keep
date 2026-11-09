@@ -1,4 +1,22 @@
 {
-  "description": "Welcome.",
-  "enter": "Enter"
+  "brand": "gim keep",
+  "title": "The keep server of gim",
+  "lead": "The gim apps use this server to back up your privacy settings and to send reports to the moderators. Your chats never pass through it.",
+  "features": {
+    "backup": {
+      "title": "Encrypted settings backup",
+      "body": "Your blocked users, read receipts and typing indicators are encrypted on your device before they are stored here, so they come back when you restore your account. This server cannot read them."
+    },
+    "reports": {
+      "title": "Reports",
+      "body": "When you report someone, the report and only the messages you choose to include are sent here for the moderators to review."
+    },
+    "choice": {
+      "title": "Your choice",
+      "body": "Using it is optional: you can pick another keep server or turn it off in the app's settings. Your settings backup is deleted when you delete your account."
+    }
+  },
+  "noAction": "There is nothing to do on this page: the apps talk to this server for you.",
+  "teamOnly": "The console of this server is for the gim team only.",
+  "enter": "Team sign in"
 }

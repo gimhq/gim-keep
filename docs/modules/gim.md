@@ -6,6 +6,11 @@ stateless about users' preferences; what must outlive a user's devices
 (block list, chat settings, privacy switches) lives here as ciphertext the
 server cannot read.
 
+Deployments set `HOME_PAGE=base` (`deploy/lode.toml`, `.env.docker.example`):
+`/` is a public page telling gim users who open the server's address what it
+is (`apps/web/src/app/routes/-home.tsx`, strings in `locales/*/home.json`);
+its "Team sign in" link leads to the console.
+
 ## File layout
 
 ```text

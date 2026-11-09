@@ -60,6 +60,9 @@ CORS_ORIGIN      = "https://keep.g.im"
 # gim clients call /api/raw/gim/v1/* directly; every request reaches the app
 # through the TLS proxy, so per-IP limits use the forwarded client address.
 TRUST_PROXY      = "true"
+# "/" shows the public page saying what the keep server is (apps/web/src/
+# app/routes/-home.tsx) instead of sending visitors to the team login.
+HOME_PAGE        = "base"
 
 [supervise]
 readiness     = "state"        # the app reports serving in state.json once its DB is open
